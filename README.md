@@ -173,7 +173,36 @@ O projeto está configurado para enviar traces automaticamente para o LangSmith 
 - Debug de problemas em produção
 - Criar datasets e avaliações
 
-Ao executar `pnpm agent:dev`, o navegador abre automaticamente o projeto no LangSmith Studio.
+### Visualizando Traces
+
+Ao executar `pnpm agent:dev`, o navegador abre automaticamente a página de traces do projeto no LangSmith.
+
+### Testando no LangGraph Studio
+
+Para testar o agente interativamente no **LangGraph Studio** (com interface visual e debug em tempo real):
+
+1. **Compile o projeto** (se ainda não compilou):
+```bash
+pnpm agent:build
+```
+
+2. **Inicie o servidor de desenvolvimento do LangGraph**:
+```bash
+pnpm studio
+```
+
+Ou use o script completo que compila e inicia:
+```bash
+pnpm studio:dev
+```
+
+3. O servidor iniciará em `http://localhost:2024` e abrirá automaticamente o LangGraph Studio no navegador.
+
+4. No Studio, você poderá:
+   - Enviar mensagens e ver o agente responder em tempo real
+   - Visualizar o grafo de execução passo a passo
+   - Inspecionar estados intermediários
+   - Fazer debug interativo
 
 ## 🏗️ Arquitetura do Agente
 
@@ -194,6 +223,8 @@ O estado do grafo é gerenciado através de `MessagesAnnotation`, que mantém um
 - `pnpm agent:dev` - Executa o agente em modo desenvolvimento
 - `pnpm agent:build` - Compila o agente
 - `pnpm agent:start` - Executa o agente compilado
+- `pnpm studio` - Inicia o servidor LangGraph para testar no Studio (requer build prévio)
+- `pnpm studio:dev` - Compila e inicia o servidor LangGraph para o Studio
 
 ## 🤝 Contribuindo
 

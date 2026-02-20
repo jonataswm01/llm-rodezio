@@ -38,3 +38,6 @@ coverage/
 .cache/
 .temp/
 *.tmp
+
+# LangGraph API
+.langgraph_api

@@ -9,7 +9,9 @@
     "format": "biome format --write",
     "agent:dev": "tsx --env-file=.env src/agents/langgraph/index.ts",
     "agent:build": "tsc",
-    "agent:start": "node dist/agents/langgraph/index.js"
+    "agent:start": "node dist/agents/langgraph/index.js",
+    "studio:dev": "pnpm agent:build && pnpm exec langgraphjs dev",
+    "studio": "pnpm exec langgraphjs dev"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +19,7 @@
   "packageManager": "pnpm@10.30.0",
   "devDependencies": {
     "@biomejs/biome": "2.4.2",
+    "@langchain/langgraph-cli": "^1.1.13",
     "@types/node": "^25.3.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

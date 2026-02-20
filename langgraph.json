@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "agent": "./dist/agents/langgraph/graph.js:agent"
+  },
+  "env": ".env"
+}

@@ -25,6 +25,9 @@ const graph = new StateGraph(MessagesAnnotation)
 
 const compiled = graph.compile();
 
+// Export the compiled graph for LangGraph Studio/CLI
+export const agent = compiled;
+
 /**
  * Run the agent with the given user input and return the assistant reply text.
  */
