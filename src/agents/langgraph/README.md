@@ -1,0 +1,40 @@
+# LangGraph agent
+
+Agente mínimo com LangGraphJS e OpenAI, com tracing opcional no LangSmith.
+
+## Variáveis de ambiente
+
+Copie `.env.example` para `.env` e preencha:
+
+- **OPENAI_API_KEY** (obrigatório): chave da API OpenAI.
+- **OPENAI_MODEL** (opcional): modelo, padrão `gpt-4.1-mini`.
+- **LANGSMITH_API_KEY** (opcional): para enviar traces ao LangSmith.
+- **LANGSMITH_PROJECT** (opcional): nome do projeto no LangSmith (padrão `llm-rodezio-agent`).
+- **LANGSMITH_WORKSPACE** (opcional): nome do workspace no LangSmith (padrão `default`).
+- **LANGSMITH_WORKSPACE_ID** (opcional): ID do workspace (mais preciso que o nome, se disponível).
+- **LANGSMITH_TRACING** (opcional): `true` para ativar tracing (ativo por padrão se a API key estiver definida).
+
+## Rodar o agente
+
+```bash
+# Com .env carregado (recomendado)
+pnpm agent:dev
+pnpm agent:dev "Sua pergunta aqui"
+
+# Ou após build
+pnpm agent:build
+pnpm agent:start
+pnpm agent:start "Sua pergunta aqui"
+```
+
+## Testar no LangSmith Studio
+
+1. Crie uma API key em [smith.langchain.com](https://smith.langchain.com) e defina `LANGSMITH_API_KEY` e `LANGSMITH_PROJECT` no `.env`.
+2. Rode o agente (`pnpm agent:dev` ou chame `POST /agent` na API).
+3. O navegador abrirá automaticamente na página do projeto no LangSmith quando você rodar `pnpm agent:dev`.
+4. Se a URL não abrir corretamente, verifique o nome do workspace no LangSmith e ajuste `LANGSMITH_WORKSPACE` ou `LANGSMITH_WORKSPACE_ID` no `.env`.
+5. Os traces de cada execução aparecerão no projeto configurado.
+
+## Uso na API
+
+O servidor expõe `POST /agent` com body `{ "message": "texto" }` e retorna `{ "response": "resposta do agente" }`.
