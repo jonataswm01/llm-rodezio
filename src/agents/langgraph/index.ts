@@ -1,6 +1,9 @@
+import { initializeLangSmith } from "../../config/langsmith.js";
+
+initializeLangSmith();
+
 import { runAgent } from "./graph";
 import { agentEnv, ensureLangSmithEnv } from "./config";
-import open from "open";
 
 export { runAgent } from "./graph";
 export { agentEnv, ensureLangSmithEnv } from "./config";
@@ -9,6 +12,7 @@ export { agentEnv, ensureLangSmithEnv } from "./config";
  * Opens LangSmith project page in the browser to view traces.
  */
 async function openLangSmithStudio(): Promise<void> {
+  const { default: open } = await import("open");
   const projectId = agentEnv.langsmith.projectId();
   const project = agentEnv.langsmith.project();
   const workspaceId = agentEnv.langsmith.workspaceId();
@@ -68,9 +72,12 @@ async function main(): Promise<void> {
   }
   
   const input = process.argv[2] ?? "Olá! Em uma frase, o que você é?";
-  console.log("Input:", input);
-  const response = await runAgent(input);
-  console.log("Response:", response);
+  process.env.RODEZIO_DEBUG = "true";
+  const { log } = await import("../../utils/logger.js");
+  log.info("Input:", input);
+  log.step("Executando agente (modo com logs)...");
+  const response = await runAgent(input, { log: true });
+  log.success("Resposta:", response);
 }
 
 const isMain = process.argv[1]?.includes("langgraph");

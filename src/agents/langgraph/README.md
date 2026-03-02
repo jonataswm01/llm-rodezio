@@ -1,6 +1,6 @@
-# LangGraph agent
+# LangGraph agent (Rodezio Multi-Agente)
 
-Agente mínimo com LangGraphJS e OpenAI, com tracing opcional no LangSmith.
+Agente ReAct multi-agêntico com LangGraphJS e OpenAI. Quando a pergunta exige fretes, usa a tool `pesquisar_fretes` para buscar no Elasticsearch (index `fretes`). Geolocalização via API sag-backend.
 
 ## Variáveis de ambiente
 
@@ -8,6 +8,11 @@ Copie `.env.example` para `.env` e preencha:
 
 - **OPENAI_API_KEY** (obrigatório): chave da API OpenAI.
 - **OPENAI_MODEL** (opcional): modelo, padrão `gpt-4.1-mini`.
+- **ELASTICSEARCH_URL** (opcional): URL do ES (padrão `http://localhost:9200`).
+- **ELASTICSEARCH_INDEX_FRETES** (opcional): index de fretes (padrão `fretes`).
+- **ELASTICSEARCH_GEO_RADIUS_KM** (opcional): raio em km para busca geo (padrão `300`).
+- **ELASTICSEARCH_USER** e **ELASTICSEARCH_PASSWORD** (opcionais): autenticação. Se não informados, conecta sem auth.
+- **SAG_BACKEND_URL** (opcional): API de localização (padrão `https://sag-backend.roduno.work`).
 - **LANGSMITH_API_KEY** (opcional): para enviar traces ao LangSmith.
 - **LANGSMITH_PROJECT** (opcional): nome do projeto no LangSmith (padrão `llm-rodezio-agent`).
 - **LANGSMITH_WORKSPACE** (opcional): nome do workspace no LangSmith (padrão `default`).
@@ -38,3 +43,7 @@ pnpm agent:start "Sua pergunta aqui"
 ## Uso na API
 
 O servidor expõe `POST /agent` com body `{ "message": "texto" }` e retorna `{ "response": "resposta do agente" }`.
+
+Exemplos de mensagens:
+- "Olá, como você pode me ajudar?" → resposta direta (sem pesquisa)
+- "Fretes de São Paulo para Curitiba de grãos" → pesquisa no ES e retorna 2–15 fretes

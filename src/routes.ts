@@ -67,7 +67,8 @@ export async function routes(app: FastifyTypedInstance) {
         },
     }, async (request, reply) => {
         const { message } = request.body
-        const response = await runAgent(message)
+        const useLogs = process.env.RODEZIO_DEBUG === "true" || process.env.DEBUG === "true"
+        const response = await runAgent(message, { log: useLogs })
         return reply.send({ response })
     })
 }

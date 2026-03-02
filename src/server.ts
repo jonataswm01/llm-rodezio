@@ -1,3 +1,7 @@
+import { initializeLangSmith } from './config/langsmith.js'
+
+initializeLangSmith()
+
 import { fastify } from 'fastify'
 import {
   serializerCompiler,

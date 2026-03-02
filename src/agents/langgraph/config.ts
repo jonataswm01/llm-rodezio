@@ -21,6 +21,16 @@ export const agentEnv = {
     apiKey: () => getEnv("OPENAI_API_KEY"),
     model: () => getEnvOptional("OPENAI_MODEL", "gpt-4.1-mini"),
   },
+  elasticsearch: {
+    url: () => getEnvOptional("ELASTICSEARCH_URL", "http://localhost:9200"),
+    indexFretes: () => getEnvOptional("ELASTICSEARCH_INDEX_FRETES", "fretes"),
+    username: () => getEnvOptional("ELASTICSEARCH_USER", ""),
+    password: () => getEnvOptional("ELASTICSEARCH_PASSWORD", ""),
+    geoRadiusKm: () => Number.parseInt(getEnvOptional("ELASTICSEARCH_GEO_RADIUS_KM", "300"), 10),
+  },
+  sagBackend: {
+    url: () => getEnvOptional("SAG_BACKEND_URL", "https://sag-backend.roduno.work"),
+  },
   langsmith: {
     apiKey: () => getEnvOptional("LANGSMITH_API_KEY", ""),
     project: () => getEnvOptional("LANGSMITH_PROJECT", "llm-rodezio-agent"),

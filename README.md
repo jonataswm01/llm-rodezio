@@ -1,19 +1,33 @@
 # LLM Rodezio
 
-API REST desenvolvida em Node.js com TypeScript que integra um agente de IA usando LangGraphJS e OpenAI, com observabilidade completa via LangSmith.
+API REST + Agente de IA (LangGraph + OpenAI) com observabilidade via LangSmith.
+
+---
+
+## 📖 Entendendo o Projeto
+
+**Documentação estruturada:** [docs/ARQUITETURA.md](./docs/ARQUITETURA.md)
+
+Lá você encontra:
+- Diagrama de alto nível
+- Estrutura de arquivos e responsabilidades
+- Fluxo de dados (API e agente)
+- Formas de uso e configuração
+
+---
 
 ## 📋 Sobre o Projeto
 
-O **LLM Rodezio** é uma aplicação backend que combina uma API REST moderna com um agente de IA baseado em LangGraph. O projeto demonstra como construir agentes inteligentes usando tecnologias de ponta do ecossistema LangChain, com foco em observabilidade e desenvolvimento ágil.
+O **LLM Rodezio** é um backend que combina API REST (Fastify) com um agente de IA baseado em LangGraph. O agente processa mensagens via OpenAI e pode enviar traces para o LangSmith.
 
 ### Principais Funcionalidades
 
-- **API REST** com Fastify e documentação Swagger automática
-- **Agente de IA** usando LangGraphJS para orquestração de workflows
-- **Integração OpenAI** para processamento de linguagem natural
-- **Observabilidade** com LangSmith para rastreamento e análise de execuções
-- **TypeScript** para type-safety e melhor DX
-- **Validação de schemas** com Zod
+| Aspecto | Tecnologia |
+|---------|------------|
+| API REST | Fastify + Swagger |
+| Agente | LangGraphJS + OpenAI |
+| Observabilidade | LangSmith |
+| Validação | Zod |
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -45,46 +59,54 @@ O **LLM Rodezio** é uma aplicação backend que combina uma API REST moderna co
 ```
 llm-rodezio/
 ├── src/
-│   ├── agents/
-│   │   └── langgraph/          # Agente LangGraph isolado
-│   │       ├── config.ts        # Configuração de env vars
-│   │       ├── graph.ts          # Definição do grafo LangGraph
-│   │       ├── index.ts          # Entrypoint do agente
-│   │       └── README.md         # Documentação do agente
-│   ├── routes.ts                # Rotas da API
+│   ├── agents/langgraph/       # Agente LangGraph
+│   │   ├── config.ts            # Env vars (OpenAI, LangSmith)
+│   │   ├── graph.ts             # Grafo principal (API + CLI)
+│   │   ├── graph-studio.ts      # Grafo para LangGraph Studio
+│   │   └── index.ts             # Entrypoint CLI
+│   ├── config/langsmith.ts      # Inicialização LangSmith
+│   ├── routes.ts                # Rotas HTTP
 │   ├── server.ts                # Servidor Fastify
-│   └── types.ts                 # Tipos TypeScript
-├── dist/                        # Build TypeScript (gerado)
-├── .env.example                 # Exemplo de variáveis de ambiente
-├── package.json
-├── tsconfig.json
-└── README.md
+│   └── types.ts
+├── docs/ARQUITETURA.md          # Documentação estruturada
+├── langgraph.json               # Config LangGraph Studio
+└── .env.example
 ```
+
+Ver detalhes em [docs/ARQUITETURA.md](./docs/ARQUITETURA.md).
+
+## 🚀 Início Rápido
+
+```bash
+pnpm install
+cp .env.example .env   # Configure OPENAI_API_KEY
+pnpm dev               # API em http://localhost:3333
+```
+
+Teste o agente: `POST http://localhost:3333/agent` com `{ "message": "Olá" }` ou use `pnpm agent:dev "Olá"`.
+
+---
 
 ## 🚀 Como Usar
 
 ### Pré-requisitos
 
-- Node.js 18+ 
-- pnpm instalado (`npm install -g pnpm`)
+- Node.js 18+
+- pnpm (`npm install -g pnpm`)
 
 ### Instalação
 
-1. Clone o repositório:
+1. Clone e instale:
 ```bash
 git clone git@github.com:jonataswm01/llm-rodezio.git
 cd llm-rodezio
-```
-
-2. Instale as dependências:
-```bash
 pnpm install
 ```
 
-3. Configure as variáveis de ambiente:
+2. Configure o `.env`:
 ```bash
 cp .env.example .env
-# Edite o .env com suas chaves de API
+# Edite e preencha OPENAI_API_KEY (obrigatório)
 ```
 
 ### Variáveis de Ambiente Necessárias
@@ -203,6 +225,18 @@ pnpm studio:dev
    - Visualizar o grafo de execução passo a passo
    - Inspecionar estados intermediários
    - Fazer debug interativo
+
+### Aviso: Erro de extração de schema
+
+O LangGraph Studio pode exibir no terminal o erro `Failed to extract schema for "agent"` (causa: `Cannot read properties of undefined (reading 'flags')` em `getSymbolLinks`). Isso é um **bug conhecido** no parser do `@langchain/langgraph-api` ao usar a API interna do TypeScript para analisar módulos e extrair schemas.
+
+**O agente continua funcionando normalmente**: você pode executar runs, visualizar o grafo e usar o Studio. O erro afeta apenas a extração automática de schemas para a UI (ex.: validação de input no chat).
+
+**Workarounds documentados** (issue [#1383](https://github.com/langchain-ai/langgraphjs/issues/1383)):
+
+- Para timeouts de schema: `LANGGRAPH_SCHEMA_RESOLVE_TIMEOUT_MS=120000` e `NODE_OPTIONS="--max-old-space-size=8192"`
+- Downgrade de TypeScript (5.6 ou 5.7) **não resolve** este erro específico de `getSymbolLinks`
+- O problema está no parser ao analisar dependências (`@langchain/openai`, `@langchain/core`, etc.); aguardar correção no `@langchain/langgraph-api`
 
 ## 🏗️ Arquitetura do Agente
 

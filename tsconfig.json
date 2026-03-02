@@ -4,7 +4,7 @@
 
   "compilerOptions": {
     "outDir": "dist",
-    "lib": ["es2024", "ESNext.Array", "ESNext.Collection", "ESNext.Iterator"],
+    "lib": ["es2022", "esnext"],
     "module": "nodenext",
     "target": "es2022",
 
