@@ -12,13 +12,20 @@ const llm = new ChatOpenAI({
   temperature: 0,
 });
 
-const SYSTEM_PROMPT = `Você é o Rodezio, um assistente especializado em fretes e logística.
+const SYSTEM_PROMPT = `Você é o Rodezio, um amigo do caminhoneiro. Fale como uma pessoa real, de forma direta e descontraída. Evite tom robótico ou formal.
 
-Quando o usuário perguntar sobre fretes, cargas, preços de transporte ou disponibilidade de cargas, use a ferramenta pesquisar_fretes para buscar no banco de dados. Passe a pesquisa em linguagem natural (ex: "fretes de São Paulo para Curitiba de grãos").
+Quando o usuário perguntar sobre fretes, use a ferramenta pesquisar_fretes. Passe a pesquisa em linguagem natural (ex: "fretes de São Paulo para Curitiba de grãos").
 
-Quando a pergunta NÃO for sobre fretes (ex: cumprimentos, dúvidas gerais, informações que você já conhece), responda diretamente sem usar ferramentas.
+Quando a pergunta NÃO for sobre fretes (cumprimentos, dúvidas gerais), responda direto sem usar ferramentas.
 
-Sempre responda em português brasileiro. Ao apresentar fretes, formate de forma clara e útil para o usuário.`;
+AO APRESENTAR FRETES:
+- Sempre mostre a lista completa que a ferramenta retornou. O caminhoneiro precisa ver todas as opções.
+- NUNCA use números para listar (1., 2., 3.). Use bullet (•) ou traço (-). A ferramenta já retorna no formato correto.
+- Não resuma nem omita fretes. Mesmo que não sejam da rota exata, mostre todos — podem servir.
+- Fale de forma natural: "Olha, achei uns fretes aqui...", "Dá uma olhada nesses...", "Não achei exatamente o que você pediu, mas tem uns próximos que podem te interessar".
+- Evite frases como "Se quiser, posso ajudar" ou "Posso buscar em outras rotas" no final — soa robótico. Se for oferecer mais ajuda, seja mais natural.
+
+Responda sempre em português brasileiro, como um colega falando com outro.`;
 
 const compiled = createReactAgent({
   llm,
@@ -63,39 +70,57 @@ function logMessage(msg: BaseMessage): void {
 export async function runAgent(userInput: string, options?: { log?: boolean }): Promise<string> {
   const useLogs = options?.log ?? (process.env.RODEZIO_DEBUG === "true" || process.env.DEBUG === "true");
 
-  if (!useLogs) {
-    const result = await compiled.invoke({
-      messages: [new HumanMessage(userInput)],
-    });
-    const messages = result.messages ?? [];
-    const last = messages[messages.length - 1];
-    if (last && "content" in last && typeof last.content === "string") {
-      return last.content;
+  log.info("runAgent: iniciando (modo log=" + useLogs + ")");
+
+  try {
+    if (!useLogs) {
+      log.info("runAgent: chamando LLM (modo invoke, sem stream)...");
+      const result = await compiled.invoke({
+        messages: [new HumanMessage(userInput)],
+      });
+      const messages = result.messages ?? [];
+      log.info("runAgent: LLM retornou", messages.length, "mensagens");
+      const last = messages[messages.length - 1];
+      if (last && "content" in last && typeof last.content === "string") {
+        log.info("runAgent: resposta extraída (length:", last.content.length, ")");
+        return last.content;
+      }
+      log.warn("runAgent: última mensagem sem content string, retornando vazio");
+      return "";
     }
-    return "";
+
+    log.step("Iniciando agente ReAct (stream)...");
+    log.agent("Pergunta do usuário:", userInput);
+
+    let lastContent = "";
+    let prevLen = 1;
+    let chunkCount = 0;
+    const stream = await compiled.stream(
+      { messages: [new HumanMessage(userInput)] },
+      { streamMode: "values" },
+    );
+    for await (const chunk of stream) {
+      chunkCount++;
+      const messages = (chunk as { messages?: BaseMessage[] }).messages ?? [];
+      for (let i = prevLen; i < messages.length; i++) {
+        const msg = messages[i];
+        if (msg) logMessage(msg);
+      }
+      prevLen = messages.length;
+      const last = messages[messages.length - 1];
+      if (last && "content" in last && typeof last.content === "string") {
+        lastContent = last.content;
+      }
+    }
+
+    log.info("runAgent: stream finalizado (", chunkCount, "chunks,", prevLen, "mensagens)");
+    log.step("Agente finalizou.");
+    return lastContent;
+  } catch (err) {
+    log.error("runAgent: erro —", err instanceof Error ? err.message : String(err));
+    if (err instanceof Error && err.stack) {
+      console.error("runAgent stack:", err.stack);
+    }
+    throw err;
   }
-
-  log.step("Iniciando agente ReAct...");
-  log.agent("Pergunta do usuário:", userInput);
-
-  let lastContent = "";
-  let prevLen = 1;
-  const stream = await compiled.stream(
-    { messages: [new HumanMessage(userInput)] },
-    { streamMode: "values" },
-  );
-  for await (const chunk of stream) {
-    const messages = (chunk as { messages?: BaseMessage[] }).messages ?? [];
-    for (let i = prevLen; i < messages.length; i++) {
-      logMessage(messages[i]!);
-    }
-    prevLen = messages.length;
-    const last = messages[messages.length - 1];
-    if (last && "content" in last && typeof last.content === "string") {
-      lastContent = last.content;
-    }
-  }
-
-  log.step("Agente finalizou.");
-  return lastContent;
 }

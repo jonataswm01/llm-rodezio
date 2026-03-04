@@ -2,6 +2,7 @@ import z from "zod"
 import type { FastifyTypedInstance } from "./types"
 import { randomUUID } from "crypto"
 import { runAgent } from "./agents/langgraph"
+import { log } from "./utils/logger.js"
 
 const userSchema = z.object({
     id: z.string().uuid(),
@@ -67,8 +68,16 @@ export async function routes(app: FastifyTypedInstance) {
         },
     }, async (request, reply) => {
         const { message } = request.body
+        log.info("POST /agent — mensagem recebida:", message.slice(0, 100) + (message.length > 100 ? "..." : ""))
         const useLogs = process.env.RODEZIO_DEBUG === "true" || process.env.DEBUG === "true"
-        const response = await runAgent(message, { log: useLogs })
-        return reply.send({ response })
+        try {
+            const response = await runAgent(message, { log: useLogs })
+            log.info("POST /agent — resposta enviada (length:", response.length, ")")
+            return reply.send({ response })
+        } catch (err) {
+            log.error("POST /agent — erro ao executar agente:", err)
+            console.error("Stack trace:", err instanceof Error ? err.stack : "(sem stack)")
+            throw err
+        }
     })
 }

@@ -56,11 +56,18 @@ interface SagApiResponse<T> {
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Location API error: ${res.status} ${res.statusText}`);
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      log.error("[Location API] HTTP", res.status, res.statusText, "—", url);
+      throw new Error(`Location API error: ${res.status} ${res.statusText}`);
+    }
+    return res.json() as Promise<T>;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("Location API error")) throw err;
+    log.error("[Location API] Erro ao buscar:", url, "—", err instanceof Error ? err.message : String(err));
+    throw err;
   }
-  return res.json() as Promise<T>;
 }
 
 /**
@@ -123,6 +130,7 @@ export async function getStateCoordinates(stateName: string): Promise<{ lat: num
 /**
  * Obtém coordenadas (lat, lon) de uma cidade.
  * Se stateId for fornecido, busca apenas no estado; senão, busca em todo o Brasil.
+ * @deprecated Prefira resolveCityWithContext em pesquisar-fretes quando há ambiguidade.
  */
 export async function getCityCoordinates(
   cityName: string,
@@ -132,4 +140,29 @@ export async function getCityCoordinates(
   const city = cities[0];
   if (!city) return null;
   return extractCoords(city);
+}
+
+/** Cache do mapa estado ID → dados do estado (para enriquecer cidades com UF) */
+let statesMapCache: Map<string, StateResult> | null = null;
+
+/**
+ * Retorna mapa stateId → StateResult para resolver nomes de estados.
+ */
+export async function getStatesMap(): Promise<Map<string, StateResult>> {
+  if (statesMapCache) return statesMapCache;
+  const states = await listStates(1);
+  statesMapCache = new Map(states.map((s) => [s.id, s]));
+  return statesMapCache;
+}
+
+/**
+ * Retorna todas as cidades que possuem coordenadas, para resolução com LLM quando há múltiplas.
+ */
+export function getCitiesWithCoords(cities: CityResult[]): Array<CityResult & { lat: number; lon: number }> {
+  const result: Array<CityResult & { lat: number; lon: number }> = [];
+  for (const c of cities) {
+    const coords = extractCoords(c);
+    if (coords) result.push({ ...c, ...coords });
+  }
+  return result;
 }

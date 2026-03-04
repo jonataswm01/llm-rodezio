@@ -8,9 +8,17 @@ import { tool } from "@langchain/core/tools";
 import z from "zod";
 import { ChatOpenAI } from "@langchain/openai";
 import { agentEnv } from "../config.js";
-import { getCityCoordinates, getStateCoordinates } from "../services/location-api.js";
+import {
+  getCitiesByQuery,
+  getCitiesWithCoords,
+  getStatesByQuery,
+  getStatesMap,
+  getStateCoordinates,
+} from "../services/location-api.js";
 import { searchFretes, type FreteHit } from "../services/elasticsearch.js";
 import { log } from "../../../utils/logger.js";
+
+type CityWithCoords = Awaited<ReturnType<typeof getCitiesByQuery>>[number] & { lat: number; lon: number };
 
 const MIN_FRETES = 2;
 const MAX_FRETES = 15;
@@ -18,6 +26,108 @@ const MAX_FRETES = 15;
 /** Remove sufixo de estado (ex: "Maringá/PR" → "Maringá") para geolocalização funcionar */
 function normalizeLocationName(name: string): string {
   return name.replace(/\s*\/\s*[A-Z]{2}\s*$/i, "").trim();
+}
+
+interface ResolveCityContext {
+  query: string;
+  role: "origin" | "destination";
+  otherCity?: { name: string; stateUf?: string };
+}
+
+type ResolveCityResult =
+  | { lat: number; lon: number; stateUf?: string }
+  | { clarificationQuestion: string };
+
+/**
+ * Resolve cidade quando há múltiplas com o mesmo nome.
+ * Usa LLM para escolher a mais provável com base no contexto (origem/destino, query).
+ * Se o LLM não conseguir decidir, retorna pergunta de esclarecimento para o usuário.
+ */
+async function resolveCityWithContext(
+  cityName: string,
+  citiesWithCoords: CityWithCoords[],
+  context: ResolveCityContext,
+): Promise<ResolveCityResult> {
+  if (citiesWithCoords.length === 0) {
+    return { clarificationQuestion: `Nenhuma cidade encontrada para "${cityName}".` };
+  }
+
+  const statesMap = await getStatesMap();
+
+  if (citiesWithCoords.length === 1) {
+    const c = citiesWithCoords[0];
+    const state = c.stateId ? statesMap.get(c.stateId) : null;
+    return { lat: c.lat, lon: c.lon, stateUf: state?.uf };
+  }
+  const options = citiesWithCoords.map((c, i) => {
+    const state = c.stateId ? statesMap.get(c.stateId) : null;
+    const uf = state?.uf ?? state?.name?.slice(0, 2) ?? undefined;
+    return { index: i + 1, name: c.name, uf, lat: c.lat, lon: c.lon };
+  });
+
+  log.tool(`[resolveCity] ${cityName}: ${options.length} cidades, consultando LLM para desambiguar`);
+
+  const llm = new ChatOpenAI({
+    apiKey: agentEnv.openai.apiKey(),
+    model: agentEnv.openai.model(),
+    temperature: 0,
+  });
+
+  const optionsDesc = options
+    .map((o) => `${o.index}. ${o.name}${o.uf ? `-${o.uf}` : ""} (lat: ${o.lat}, lon: ${o.lon})`)
+    .join("\n");
+
+  const prompt = `Você ajuda a desambiguar cidades brasileiras em pesquisas de fretes.
+
+CONTEXTO:
+- Pesquisa do usuário: "${context.query}"
+- Cidade a resolver: "${cityName}" (${context.role === "origin" ? "origem" : "destino"})
+${context.otherCity ? `- ${context.role === "origin" ? "Destino" : "Origem"} já informado: ${context.otherCity.name}${context.otherCity.stateUf ? ` (${context.otherCity.stateUf})` : ""}` : ""}
+
+OPÇÕES ENCONTRADAS (várias cidades com o mesmo nome):
+${optionsDesc}
+
+REGRAS:
+1. Considere o contexto da pesquisa. Ex: "Barretos para Santos" — Barretos fica em SP; Santos-SP é o principal porto do Brasil e faz mais sentido para fretes que Santos-PB.
+2. Cidades mais conhecidas (portos, capitais, grandes centros) tendem a ser a escolha correta em contexto de fretes.
+3. Se origem e destino estão no mesmo estado ou região, priorize cidades da mesma região.
+4. Só retorne clarificationNeeded: true se NÃO conseguir decidir com confiança (ex: pouca informação, cidades igualmente plausíveis).
+
+Retorne APENAS um JSON válido, sem markdown:
+{"selectedIndex": número de 1 a ${options.length}} OU {"clarificationNeeded": true}
+
+Se clarificationNeeded for true, o sistema perguntará ao usuário qual cidade ele quer.`;
+
+  const response = await llm.invoke([{ role: "user", content: prompt }]);
+  const content = typeof response.content === "string" ? response.content : String(response.content);
+
+  try {
+    const json = content.replace(/```json?\s*|\s*```/g, "").trim();
+    const parsed = JSON.parse(json) as { selectedIndex?: number; clarificationNeeded?: boolean };
+
+    if (parsed.clarificationNeeded) {
+      const optionsText = options.map((o) => `${o.index}) ${o.name}${o.uf ? `-${o.uf}` : ""}`).join(", ");
+      log.tool(`[resolveCity] LLM não conseguiu decidir, perguntando ao usuário`);
+      return {
+        clarificationQuestion: `Encontramos várias cidades chamadas "${cityName}". Qual você quer? ${optionsText}\n\nResponda com o número (ex: 1) ou o nome completo com estado (ex: Santos-SP).`,
+      };
+    }
+
+    const idx = parsed.selectedIndex;
+    if (typeof idx !== "number" || idx < 1 || idx > options.length) {
+      log.tool(`[resolveCity] Índice inválido (${idx}), usando primeira opção`);
+      const first = options[0];
+      return { lat: first.lat, lon: first.lon, stateUf: first.uf };
+    }
+
+    const chosen = options[idx - 1];
+    log.tool(`[resolveCity] LLM escolheu: ${chosen.name}${chosen.uf ? `-${chosen.uf}` : ""} (índice ${idx})`);
+    return { lat: chosen.lat, lon: chosen.lon, stateUf: chosen.uf };
+  } catch {
+    log.tool("[resolveCity] Falha ao parsear resposta do LLM, usando primeira opção");
+    const first = options[0];
+    return { lat: first.lat, lon: first.lon, stateUf: first.uf };
+  }
 }
 
 interface ExtractedParams {
@@ -96,7 +206,7 @@ function formatPublicationDate(ts?: string): string {
   }
 }
 
-function formatFrete(f: FreteHit, index: number): string {
+function formatFrete(f: FreteHit): string {
   const origin = f.origin?.content ?? "N/A";
   const dest = f.destination?.content ?? "N/A";
   const price = f.price != null && f.price >= 0 ? `R$ ${f.price.toFixed(2)}` : "N/A";
@@ -106,74 +216,131 @@ function formatFrete(f: FreteHit, index: number): string {
   const publishedAt = formatPublicationDate(f.timestamp);
   const vehicleInfo = vehicle && vehicle !== "UNKNOWN" ? ` | ${vehicle}` : "";
   const productInfo = product ? ` | ${product}` : "";
-  return `${index + 1}. Origem: ${origin} → Destino: ${dest} | ${price} | Transportador: ${carrier} | Publicado: ${publishedAt}${productInfo}${vehicleInfo}`;
+  return `• ${origin} → ${dest} | ${price} | ${carrier} | ${publishedAt}${productInfo}${vehicleInfo}`;
 }
 
 export const pesquisarFretesTool = tool(
   async (input: { query: string }) => {
     const { query } = input;
     log.tool("pesquisar_fretes chamada com query:", query);
+    log.info("[pesquisar_fretes] Iniciando tool, query:", query);
 
-    if (!query || typeof query !== "string") {
-      log.tool("Erro: query inválida");
-      return "Erro: informe uma pesquisa em linguagem natural (ex: fretes de São Paulo para Curitiba de grãos).";
-    }
-
-    const params = await extractParamsFromQuery(query);
-
-    if (params.clarificationQuestion) {
-      log.tool("Retornando pergunta de esclarecimento ao usuário");
-      return params.clarificationQuestion;
-    }
-
-    let originLatLon: { lat: number; lon: number } | undefined;
-    let destinationLatLon: { lat: number; lon: number } | undefined;
-    let originText: string | undefined;
-    let destinationText: string | undefined;
-
-    if (params.origin) {
-      const originNorm = normalizeLocationName(params.origin);
-      log.tool("Resolvendo geolocalização da origem:", originNorm);
-      originLatLon = await getCityCoordinates(originNorm) ?? await getStateCoordinates(originNorm) ?? undefined;
-      if (!originLatLon) {
-        originText = originNorm;
-        log.tool("Origem: usando busca por texto (sem lat/long)");
-      } else {
-        log.tool("Origem: coordenadas encontradas", originLatLon);
+    try {
+      if (!query || typeof query !== "string") {
+        log.tool("Erro: query inválida");
+        log.warn("[pesquisar_fretes] Query inválida");
+        return "Erro: informe uma pesquisa em linguagem natural (ex: fretes de São Paulo para Curitiba de grãos).";
       }
-    }
-    if (params.destination) {
-      const destNorm = normalizeLocationName(params.destination);
-      log.tool("Resolvendo geolocalização do destino:", destNorm);
-      destinationLatLon = await getCityCoordinates(destNorm) ?? await getStateCoordinates(destNorm) ?? undefined;
-      if (!destinationLatLon) {
-        destinationText = destNorm;
-        log.tool("Destino: usando busca por texto (sem lat/long)");
-      } else {
-        log.tool("Destino: coordenadas encontradas", destinationLatLon);
+
+      log.info("[pesquisar_fretes] Extraindo parâmetros com LLM...");
+      const params = await extractParamsFromQuery(query);
+
+      if (params.clarificationQuestion) {
+        log.tool("Retornando pergunta de esclarecimento ao usuário");
+        return params.clarificationQuestion;
       }
+
+      let originLatLon: { lat: number; lon: number } | undefined;
+      let destinationLatLon: { lat: number; lon: number } | undefined;
+      let originText: string | undefined;
+      let destinationText: string | undefined;
+      let originResolved: { name: string; stateUf?: string } | undefined;
+
+      const resolveLocation = async (
+        locationName: string,
+        role: "origin" | "destination",
+      ): Promise<{
+        latLon?: { lat: number; lon: number };
+        text?: string;
+        clarificationQuestion?: string;
+        stateUf?: string;
+      }> => {
+        const norm = normalizeLocationName(locationName);
+        log.tool(`Resolvendo geolocalização ${role === "origin" ? "da origem" : "do destino"}:`, norm);
+        log.info(`[pesquisar_fretes] Resolvendo ${role}:`, norm);
+
+        const cities = await getCitiesByQuery({ q: norm });
+        const withCoords = getCitiesWithCoords(cities);
+
+        if (withCoords.length === 0) {
+          const stateCoords = await getStateCoordinates(norm);
+          if (stateCoords) {
+            const states = await getStatesByQuery(norm);
+            const stateUf = states[0]?.uf;
+            log.tool(`${role === "origin" ? "Origem" : "Destino"}: coordenadas do estado encontradas`, stateCoords);
+            return { latLon: stateCoords, stateUf };
+          }
+          log.tool(`${role === "origin" ? "Origem" : "Destino"}: usando busca por texto (sem lat/long)`);
+          return { text: norm };
+        }
+
+        const result = await resolveCityWithContext(norm, withCoords, {
+          query,
+          role,
+          otherCity: originResolved,
+        });
+
+        if ("clarificationQuestion" in result) {
+          return { clarificationQuestion: result.clarificationQuestion };
+        }
+        log.tool(`${role === "origin" ? "Origem" : "Destino"}: coordenadas encontradas`, result);
+        return { latLon: result, stateUf: result.stateUf };
+      };
+
+      if (params.origin) {
+        const originResult = await resolveLocation(params.origin, "origin");
+        if (originResult.clarificationQuestion) {
+          log.tool("Retornando pergunta de esclarecimento (origem)");
+          return originResult.clarificationQuestion;
+        }
+        originLatLon = originResult.latLon;
+        originText = originResult.text;
+        if (originLatLon && params.origin) {
+          originResolved = { name: params.origin, stateUf: originResult.stateUf };
+        }
+      }
+
+      if (params.destination) {
+        const destResult = await resolveLocation(params.destination, "destination");
+        if (destResult.clarificationQuestion) {
+          log.tool("Retornando pergunta de esclarecimento (destino)");
+          return destResult.clarificationQuestion;
+        }
+        destinationLatLon = destResult.latLon;
+        destinationText = destResult.text;
+      }
+
+      log.info("[pesquisar_fretes] Buscando no Elasticsearch...");
+      log.tool("Buscando no Elasticsearch...");
+      const fretes = await searchFretes({
+        originLatLon: originLatLon ? { lat: originLatLon.lat, lon: originLatLon.lon } : undefined,
+        destinationLatLon: destinationLatLon
+          ? { lat: destinationLatLon.lat, lon: destinationLatLon.lon }
+          : undefined,
+        originText,
+        destinationText,
+        productType: params.productType,
+        carrierName: params.carrierName,
+        limit: MAX_FRETES,
+      });
+
+      if (fretes.length === 0) {
+        log.tool("Nenhum frete encontrado");
+        log.info("[pesquisar_fretes] Nenhum frete encontrado");
+        return `Nenhum frete encontrado para a pesquisa: "${query}". Tente ajustar origem, destino ou filtros.`;
+      }
+
+      const slice = fretes.slice(0, Math.max(MIN_FRETES, fretes.length));
+      log.tool(`Encontrados ${slice.length} fretes`);
+      log.info("[pesquisar_fretes] Encontrados", slice.length, "fretes");
+      const formatted = slice.map((f) => formatFrete(f)).join("\n");
+      return `Encontrados ${slice.length} fretes:\n\n${formatted}`;
+    } catch (err) {
+      log.error("[pesquisar_fretes] Erro:", err instanceof Error ? err.message : String(err));
+      console.error("[pesquisar_fretes] Stack:", err instanceof Error ? err.stack : "(sem stack)");
+      const msg = err instanceof Error ? err.message : String(err);
+      return `Erro ao pesquisar fretes: ${msg}. Verifique Elasticsearch, API de localização e OPENAI_API_KEY.`;
     }
-
-    log.tool("Buscando no Elasticsearch...");
-    const fretes = await searchFretes({
-      originLatLon,
-      destinationLatLon,
-      originText,
-      destinationText,
-      productType: params.productType,
-      carrierName: params.carrierName,
-      limit: MAX_FRETES,
-    });
-
-    if (fretes.length === 0) {
-      log.tool("Nenhum frete encontrado");
-      return `Nenhum frete encontrado para a pesquisa: "${query}". Tente ajustar origem, destino ou filtros.`;
-    }
-
-    const slice = fretes.slice(0, Math.max(MIN_FRETES, fretes.length));
-    log.tool(`Encontrados ${slice.length} fretes`);
-    const formatted = slice.map((f, i) => formatFrete(f, i)).join("\n");
-    return `Encontrados ${slice.length} fretes:\n\n${formatted}`;
   },
   {
     name: "pesquisar_fretes",

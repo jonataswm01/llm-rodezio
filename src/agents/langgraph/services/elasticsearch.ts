@@ -127,13 +127,21 @@ export async function searchFretes(params: SearchFretesParams): Promise<FreteHit
 
   log.debug("ES: query", JSON.stringify(body.query, null, 2));
 
-  const response = await client.search<FreteHit>({
-    index: INDEX,
-    body,
-  });
+  try {
+    log.info("[Elasticsearch] Executando busca no index:", INDEX);
+    const response = await client.search<FreteHit>({
+      index: INDEX,
+      body,
+    });
 
-  const hits = response.hits.hits ?? [];
-  const results = hits.map((h) => h._source).filter((s): s is FreteHit => s != null);
-  log.debug(`ES: ${results.length} fretes encontrados`);
-  return results;
+    const hits = response.hits.hits ?? [];
+    const results = hits.map((h) => h._source).filter((s): s is FreteHit => s != null);
+    log.info("[Elasticsearch] Encontrados", results.length, "fretes");
+    log.debug(`ES: ${results.length} fretes encontrados`);
+    return results;
+  } catch (err) {
+    log.error("[Elasticsearch] Erro na busca:", err instanceof Error ? err.message : String(err));
+    console.error("[Elasticsearch] Stack:", err instanceof Error ? err.stack : "(sem stack)");
+    throw err;
+  }
 }
