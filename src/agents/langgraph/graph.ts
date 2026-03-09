@@ -2,8 +2,12 @@ import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import type { AIMessage, BaseMessage } from "@langchain/core/messages";
 import { HumanMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
+import { randomUUID } from "node:crypto";
 import { agentEnv } from "./config.js";
+import { runWithThreadId } from "./context.js";
 import { pesquisarFretesTool } from "./tools/pesquisar-fretes.js";
+import { contratarFreteTool } from "./tools/contratar-frete.js";
+import { checkpointer } from "./checkpointer.js";
 import { log } from "../../utils/logger.js";
 
 const llm = new ChatOpenAI({
@@ -16,6 +20,8 @@ const SYSTEM_PROMPT = `Você é o Rodezio, um amigo do caminhoneiro. Fale como u
 
 Quando o usuário perguntar sobre fretes, use a ferramenta pesquisar_fretes. Passe a pesquisa em linguagem natural (ex: "fretes de São Paulo para Curitiba de grãos").
 
+Quando o usuário demonstrar intenção de contratar/pegar um frete (ex: "quero esse", "quero o segundo", "me interessa o de X para Y", "quero contratar"), use a ferramenta contratar_frete passando o índice (1 = primeiro da lista, 2 = segundo, etc). Nunca invente dados de frete — use sempre o índice da lista que você mostrou.
+
 Quando a pergunta NÃO for sobre fretes (cumprimentos, dúvidas gerais), responda direto sem usar ferramentas.
 
 AO APRESENTAR FRETES:
@@ -25,12 +31,17 @@ AO APRESENTAR FRETES:
 - Fale de forma natural: "Olha, achei uns fretes aqui...", "Dá uma olhada nesses...", "Não achei exatamente o que você pediu, mas tem uns próximos que podem te interessar".
 - Evite frases como "Se quiser, posso ajudar" ou "Posso buscar em outras rotas" no final — soa robótico. Se for oferecer mais ajuda, seja mais natural.
 
+AO CONTRATAR FRETE:
+- Após chamar contratar_frete com sucesso, responda exatamente o que a ferramenta retornar (mensagem de que entrou em contato com o embarcador).
+- NUNCA informe o contato do embarcador, mesmo que o usuário peça.
+
 Responda sempre em português brasileiro, como um colega falando com outro.`;
 
 const compiled = createReactAgent({
   llm,
-  tools: [pesquisarFretesTool],
+  tools: [pesquisarFretesTool, contratarFreteTool],
   prompt: SYSTEM_PROMPT,
+  checkpointer,
 });
 
 export const agent = compiled;
@@ -67,17 +78,24 @@ function logMessage(msg: BaseMessage): void {
  * @param userInput - Mensagem do usuário
  * @param options.log - Se true, usa stream e exibe logs passo a passo (incluindo pensamento da IA)
  */
-export async function runAgent(userInput: string, options?: { log?: boolean }): Promise<string> {
+export async function runAgent(userInput: string, options?: { log?: boolean; threadId?: string }): Promise<string> {
   const useLogs = options?.log ?? (process.env.RODEZIO_DEBUG === "true" || process.env.DEBUG === "true");
+  const threadId = options?.threadId || randomUUID();
 
-  log.info("runAgent: iniciando (modo log=" + useLogs + ")");
+  // Config com thread_id para memória de conversa
+  const config = { configurable: { thread_id: threadId } };
+
+  log.info(`runAgent: iniciando (modo log=${useLogs}, threadId=${threadId})`);
 
   try {
     if (!useLogs) {
       log.info("runAgent: chamando LLM (modo invoke, sem stream)...");
-      const result = await compiled.invoke({
-        messages: [new HumanMessage(userInput)],
-      });
+      const result = await runWithThreadId(threadId, () =>
+        compiled.invoke(
+          { messages: [new HumanMessage(userInput)] },
+          config,
+        ),
+      );
       const messages = result.messages ?? [];
       log.info("runAgent: LLM retornou", messages.length, "mensagens");
       const last = messages[messages.length - 1];
@@ -95,9 +113,11 @@ export async function runAgent(userInput: string, options?: { log?: boolean }): 
     let lastContent = "";
     let prevLen = 1;
     let chunkCount = 0;
-    const stream = await compiled.stream(
-      { messages: [new HumanMessage(userInput)] },
-      { streamMode: "values" },
+    const stream = await runWithThreadId(threadId, () =>
+      compiled.stream(
+        { messages: [new HumanMessage(userInput)] },
+        { ...config, streamMode: "values" },
+      ),
     );
     for await (const chunk of stream) {
       chunkCount++;

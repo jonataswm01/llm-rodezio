@@ -59,6 +59,7 @@ export async function routes(app: FastifyTypedInstance) {
             description: 'Send a message to the LangGraph agent and get a reply',
             body: z.object({
                 message: z.string().describe('User message'),
+                threadId: z.string().optional().describe('Phone number as thread ID for conversation memory'),
             }),
             response: {
                 200: z.object({
@@ -67,11 +68,11 @@ export async function routes(app: FastifyTypedInstance) {
             },
         },
     }, async (request, reply) => {
-        const { message } = request.body
-        log.info("POST /agent — mensagem recebida:", message.slice(0, 100) + (message.length > 100 ? "..." : ""))
+        const { message, threadId } = request.body
+        log.info("POST /agent — mensagem recebida:", message.slice(0, 100) + (message.length > 100 ? "..." : ""), threadId ? `(thread: ${threadId})` : "(sem thread)")
         const useLogs = process.env.RODEZIO_DEBUG === "true" || process.env.DEBUG === "true"
         try {
-            const response = await runAgent(message, { log: useLogs })
+            const response = await runAgent(message, { log: useLogs, threadId })
             log.info("POST /agent — resposta enviada (length:", response.length, ")")
             return reply.send({ response })
         } catch (err) {

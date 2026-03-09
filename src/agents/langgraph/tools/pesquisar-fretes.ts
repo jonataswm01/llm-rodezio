@@ -16,6 +16,8 @@ import {
   getStateCoordinates,
 } from "../services/location-api.js";
 import { searchFretes, type FreteHit } from "../services/elasticsearch.js";
+import { setLastSearch } from "../services/search-cache.js";
+import { getThreadId } from "../context.js";
 import { log } from "../../../utils/logger.js";
 
 type CityWithCoords = Awaited<ReturnType<typeof getCitiesByQuery>>[number] & { lat: number; lon: number };
@@ -333,6 +335,15 @@ export const pesquisarFretesTool = tool(
       const slice = fretes.slice(0, Math.max(MIN_FRETES, fretes.length));
       log.tool(`Encontrados ${slice.length} fretes`);
       log.info("[pesquisar_fretes] Encontrados", slice.length, "fretes");
+
+      const threadId = getThreadId();
+      if (threadId) {
+        await setLastSearch(threadId, {
+          fretes: slice,
+          rota: { origin: params.origin, destination: params.destination },
+        });
+      }
+
       const formatted = slice.map((f) => formatFrete(f)).join("\n");
       return `Encontrados ${slice.length} fretes:\n\n${formatted}`;
     } catch (err) {

@@ -28,8 +28,14 @@ export const agentEnv = {
     password: () => getEnvOptional("ELASTICSEARCH_PASSWORD", ""),
     geoRadiusKm: () => Number.parseInt(getEnvOptional("ELASTICSEARCH_GEO_RADIUS_KM", "300"), 10),
   },
+  redis: {
+    url: () => getEnvOptional("REDIS_URL", "redis://localhost:6379"),
+  },
   sagBackend: {
     url: () => getEnvOptional("SAG_BACKEND_URL", "https://sag-backend.roduno.work"),
+  },
+  n8n: {
+    webhookUrl: () => getEnvOptional("N8N_WEBHOOK_CONTRATAR_FRETE", ""),
   },
   langsmith: {
     apiKey: () => getEnvOptional("LANGSMITH_API_KEY", ""),
