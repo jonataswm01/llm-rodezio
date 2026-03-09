@@ -6,6 +6,10 @@ import { agentEnv } from "../config.js";
 import { log } from "../../../utils/logger.js";
 
 export interface ContratarFretePayload {
+  /** ID da mensagem do frete (para identificar no WhatsApp/grupo) */
+  messageId?: string;
+  /** RemoteJid do embarcador (para contato) */
+  remoteJidEmbarcador?: string;
   rota: { origem?: string; destino?: string };
   frete: Record<string, unknown>;
   resumoConversa: string;

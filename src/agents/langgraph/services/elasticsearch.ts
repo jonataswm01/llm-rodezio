@@ -38,6 +38,8 @@ export interface FreteHit {
   weight_unit?: string;
   timestamp?: string;
   message_id?: string;
+  remote_jid?: string;
+  remoteJid_embarcador?: string;
 }
 
 export interface SearchFretesParams {

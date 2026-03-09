@@ -1,6 +1,6 @@
 /**
  * Cache Redis para a última pesquisa de fretes por thread.
- * Usado pela tool contratar_frete para obter o frete real (anti-alucinação).
+ * Usado pela tool contratar_frete para obter rota e frete real (com ID).
  */
 
 import Redis from "ioredis";

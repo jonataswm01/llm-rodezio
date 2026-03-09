@@ -1,7 +1,8 @@
 /**
  * Tool contratar_frete — quando o caminhoneiro manifesta intenção de contratar um frete,
  * chama o webhook n8n com os dados e retorna mensagem fixa.
- * Anti-alucinação: o frete vem sempre do cache da última pesquisa.
+ * O freteIndex (1, 2, 3...) vem do LLM — indica qual frete da lista o usuário escolheu.
+ * O frete real (com ID/message_id) vem do cache da última pesquisa.
  */
 
 import { tool } from "@langchain/core/tools";
@@ -23,10 +24,6 @@ const INDEX_INVALID_MESSAGE =
 
 const N8N_ERROR_MESSAGE =
   "Tive um problema ao enviar sua solicitação. Tente novamente em alguns minutos.";
-
-function freteToPayload(frete: Record<string, unknown>): Record<string, unknown> {
-  return { ...frete };
-}
 
 export const contratarFreteTool = tool(
   async (input: { freteIndex: number }) => {
@@ -61,12 +58,18 @@ export const contratarFreteTool = tool(
       log.warn("[contratar_frete] Erro ao obter resumo:", err instanceof Error ? err.message : String(err));
     }
 
+    const messageId = frete.message_id as string | undefined;
+    const remoteJidEmbarcador =
+      (frete.remoteJid_embarcador as string | undefined) ?? (frete.remote_jid as string | undefined);
+
     const payload = {
+      messageId,
+      remoteJidEmbarcador,
       rota: {
         origem: rota.origin,
         destino: rota.destination,
       },
-      frete: freteToPayload(frete),
+      frete: { ...frete },
       resumoConversa: resumoConversa || "Conversa não disponível.",
       dadosUsuario: { remoteJid: threadId },
     };
