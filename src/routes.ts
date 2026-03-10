@@ -63,7 +63,7 @@ export async function routes(app: FastifyTypedInstance) {
             }),
             response: {
                 200: z.object({
-                    response: z.string().describe('Agent reply'),
+                    messages: z.array(z.string()).describe('Array de mensagens para enviar separadamente'),
                 }),
             },
         },
@@ -72,9 +72,9 @@ export async function routes(app: FastifyTypedInstance) {
         log.info("POST /agent — mensagem recebida:", message.slice(0, 100) + (message.length > 100 ? "..." : ""), threadId ? `(thread: ${threadId})` : "(sem thread)")
         const useLogs = process.env.RODEZIO_DEBUG === "true" || process.env.DEBUG === "true"
         try {
-            const response = await runAgent(message, { log: useLogs, threadId })
-            log.info("POST /agent — resposta enviada (length:", response.length, ")")
-            return reply.send({ response })
+            const { messages } = await runAgent(message, { log: useLogs, threadId })
+            log.info("POST /agent — resposta enviada (", messages.length, "mensagens)")
+            return reply.send({ messages })
         } catch (err) {
             log.error("POST /agent — erro ao executar agente:", err)
             console.error("Stack trace:", err instanceof Error ? err.stack : "(sem stack)")

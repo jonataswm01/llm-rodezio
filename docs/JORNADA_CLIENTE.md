@@ -51,7 +51,7 @@ Sempre mostrar o máximo de opções (até 15). O usuário quer ver bastante par
 
 ### O que não fazemos
 
-- **Liberar contato do embarcador** — se o usuário pedir, dizer que não temos ou que não é liberado
+- **Liberar contato do embarcador** — nunca liberamos. Se o usuário pedir, dizer que vamos entrar em contato e que logo o embarcador responsável vai entrar em contato com ele para conversar
 - Assuntos genéricos fora de fretes e estrada
 
 ### Cotação de frete
@@ -60,7 +60,7 @@ Quando o usuário pede cotação: o agente chama o webhook n8n `frete-cotacao` (
 
 ### Demandas fora do escopo (exemplos)
 
-- "Me passa o telefone/WhatsApp do embarcador"
+- "Me passa o telefone/WhatsApp do embarcador" → responder que vamos entrar em contato e que o embarcador responsável vai entrar em contato com ele para conversar (nunca liberar o contato)
 - Assuntos não relacionados a fretes ou à estrada
 
 ### Regra para o agente

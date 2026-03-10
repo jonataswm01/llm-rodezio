@@ -42,7 +42,7 @@ pnpm agent:start "Sua pergunta aqui"
 
 ## Uso na API
 
-O servidor expõe `POST /agent` com body `{ "message": "texto" }` e retorna `{ "response": "resposta do agente" }`.
+O servidor expõe `POST /agent` com body `{ "message": "texto" }` e retorna `{ "messages": ["msg1", "msg2", ...] }` — array de mensagens para enviar separadamente.
 
 Exemplos de mensagens:
 - "Olá, como você pode me ajudar?" → resposta direta (sem pesquisa)

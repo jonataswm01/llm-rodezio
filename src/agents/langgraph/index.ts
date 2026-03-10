@@ -76,8 +76,11 @@ async function main(): Promise<void> {
   const { log } = await import("../../utils/logger.js");
   log.info("Input:", input);
   log.step("Executando agente (modo com logs)...");
-  const response = await runAgent(input, { log: true });
-  log.success("Resposta:", response);
+  const { messages } = await runAgent(input, { log: true });
+  log.success("Resposta (", messages.length, "mensagens):");
+  for (let i = 0; i < messages.length; i++) {
+    console.log(`\n--- Mensagem ${i + 1} ---\n${messages[i]}\n`);
+  }
 }
 
 const isMain = process.argv[1]?.includes("langgraph");

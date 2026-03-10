@@ -192,35 +192,6 @@ Use null para campos não mencionados.`;
   }
 }
 
-/** Formata timestamp para exibição (ex: "02/03/2025" ou "2 de mar 2025") */
-function formatPublicationDate(ts?: string): string {
-  if (!ts) return "N/A";
-  try {
-    const d = new Date(ts);
-    if (Number.isNaN(d.getTime())) return "N/A";
-    return d.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  } catch {
-    return "N/A";
-  }
-}
-
-function formatFrete(f: FreteHit): string {
-  const origin = f.origin?.content ?? "N/A";
-  const dest = f.destination?.content ?? "N/A";
-  const price = f.price != null && f.price >= 0 ? `R$ ${f.price.toFixed(2)}` : "N/A";
-  const carrier = f.carrier_name ?? "N/A";
-  const product = f.product_type ?? "";
-  const vehicle = f.vehicle_type ?? "";
-  const publishedAt = formatPublicationDate(f.timestamp);
-  const vehicleInfo = vehicle && vehicle !== "UNKNOWN" ? ` | ${vehicle}` : "";
-  const productInfo = product ? ` | ${product}` : "";
-  return `• ${origin} → ${dest} | ${price} | ${carrier} | ${publishedAt}${productInfo}${vehicleInfo}`;
-}
-
 export const pesquisarFretesTool = tool(
   async (input: { query: string }) => {
     const { query } = input;
@@ -344,8 +315,18 @@ export const pesquisarFretesTool = tool(
         });
       }
 
-      const formatted = slice.map((f) => formatFrete(f)).join("\n");
-      return `Encontrados ${slice.length} fretes:\n\n${formatted}`;
+      const fretesJson = slice.map((f) => ({
+        carrier_name: f.carrier_name ?? null,
+        origin: f.origin?.content ?? null,
+        destination: f.destination?.content ?? null,
+        price: f.price ?? null,
+        product_type: f.product_type ?? null,
+        vehicle_type: f.vehicle_type ?? null,
+        weight_amount: f.weight_amount ?? null,
+        weight_unit: f.weight_unit ?? null,
+        timestamp: f.timestamp ?? null,
+      }));
+      return JSON.stringify({ fretes: fretesJson });
     } catch (err) {
       log.error("[pesquisar_fretes] Erro:", err instanceof Error ? err.message : String(err));
       console.error("[pesquisar_fretes] Stack:", err instanceof Error ? err.stack : "(sem stack)");
@@ -355,7 +336,7 @@ export const pesquisarFretesTool = tool(
   },
   {
     name: "pesquisar_fretes",
-    description: `Pesquisa fretes no banco de dados. Use quando o usuário pedir fretes, cargas ou preços de transporte. Entrada: descrição em linguagem natural. Exemplos: "fretes de São Paulo para Curitiba de grãos", "fretes de Maringá até Paranaguá da G10" (G10 = transportadora). Retorna entre ${MIN_FRETES} e ${MAX_FRETES} fretes com origem, destino, preço, transportador e data de publicação. Sempre inclua a data de publicação ao apresentar os resultados ao usuário.`,
+    description: `Pesquisa fretes no banco de dados. Use quando o usuário pedir fretes, cargas ou preços de transporte. Entrada: descrição em linguagem natural. Retorna JSON com array "fretes" contendo objetos com: carrier_name, origin, destination, price, product_type, vehicle_type, weight_amount, weight_unit, timestamp. Entre ${MIN_FRETES} e ${MAX_FRETES} fretes. Casos sem fretes (erro, nenhum resultado, pergunta de esclarecimento): retorna string simples.`,
     schema: z.object({
       query: z.string().describe("Pesquisa em linguagem natural, ex: fretes de São Paulo para Curitiba de grãos"),
     }),

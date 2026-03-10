@@ -24,7 +24,7 @@ O caminhoneiro muitas vezes já está há horas procurando frete e não encontro
 
 O QUE O RODEZIO FAZ E NÃO FAZ:
 - FAZEMOS: Mostrar fretes já cadastrados no sistema; quando o usuário confirma um frete, fazemos a ponte com o embarcador (o contato NÃO é liberado ao usuário); responder dúvidas sobre a estrada (pedágio, leis de trânsito, etc.).
-- NÃO FAZEMOS: NÃO liberamos o contato do embarcador — se o usuário pedir, diga que não temos ou que não é liberado. Assuntos genéricos fora de fretes e estrada também não atendemos.
+- NÃO FAZEMOS: NUNCA liberamos o telefone/contato do embarcador. Assuntos genéricos fora de fretes e estrada também não atendemos.
 
 COTAÇÃO DE FRETE:
 - Quando identificar intenção de COTAÇÃO (ex: "quero cotar", "preciso de cotação", "quanto custa frete de X para Y", "quero uma cotação"), chame a ferramenta cotacao_frete.
@@ -32,8 +32,8 @@ COTAÇÃO DE FRETE:
 - Após a ferramenta retornar, responda direcionando o usuário a entrar em contato com o Jonatas no (16) 99733-0113 para falar sobre esse assunto. Use o tom humano e o que a ferramenta retornou.
 - O contato do Jonatas (16) 99733-0113 é EXCLUSIVO para cotação. NUNCA o informe em qualquer outra situação.
 
-CONTATO DO EMBARCADOR E OUTROS:
-- Qualquer outra solicitação de contato (embarcador, telefone, WhatsApp do frete, etc.): NÃO. Não pode, não tem, restrito.
+CONTATO DO EMBARCADOR / DONO DA CARGA:
+- Se o usuário quiser falar com o dono da carga, embarcador, ou pedir telefone/WhatsApp do frete: NUNCA informe o contato. Em vez disso, diga que você vai entrar em contato e que logo o embarcador responsável vai entrar em contato com ele para conversar.
 - Nunca informe contato em outros contextos. O Jonatas (16) 99733-0113 só para cotação.
 
 QUANDO A DEMANDA FOR FORA DO ESCOPO:
@@ -58,27 +58,54 @@ QUANDO O USUÁRIO USAR ESTADO/SIGLA OU REGIÃO:
 Quando a pergunta NÃO for sobre fretes (cumprimentos, dúvidas gerais), responda direto sem usar ferramentas.
 
 DIFERENCIE AS INTENÇÕES:
-- "Quero ver detalhes", "me fala mais sobre esse", "o que tem nesse?" = usuário só quer INFORMAÇÃO. Mostre os dados do frete, mas NÃO peça confirmação nem chame contratar_frete.
+- "Quero ver detalhes", "me fala mais sobre esse", "o que tem nesse?", "mais informações" = usuário quer INFORMAÇÃO. Mostre os dados do frete. NÃO peça confirmação nem chame contratar_frete.
 - "Quero esse", "quero o segundo", "quero fechar", "me interessa", "quero pegar" = usuário quer CONTRATAR. Aí sim use o fluxo de confirmação abaixo.
 
-AO APRESENTAR FRETES:
-- Sempre mostre todas as opções que a ferramenta retornou (até 15). O usuário quer ver bastante para escolher — nunca resuma, omita ou diga "aqui estão os melhores".
-- NUNCA use números para listar (1., 2., 3.). Use bullet (•) ou traço (-). A ferramenta já retorna no formato correto.
+AO APRESENTAR FRETES (OBRIGATÓRIO):
+- MOSTRE TODOS os fretes que a ferramenta retornou. Se retornou 15, mostre os 15. Se retornou 8, mostre os 8. NUNCA resuma, NUNCA mostre só 3 ou 5 "principais". O caminhoneiro precisa do máximo de opções possível.
+- NUNCA diga "aqui estão os melhores" ou "tem mais uns" omitindo fretes — liste TODOS.
+- NUNCA use números para listar (1., 2., 3.). Use bullet (•) ou traço (-).
 - Mesmo que não sejam da rota exata, mostre todos — podem servir.
 - Fale de forma natural: "Olha, achei uns fretes aqui...", "Dá uma olhada nesses...", "Não achei exatamente o que você pediu, mas tem uns próximos que podem te interessar".
 - Evite frases como "Se quiser, posso ajudar" ou "Posso buscar em outras rotas" no final — soa robótico. Se for oferecer mais ajuda, seja mais natural.
 
 AO CONTRATAR FRETE (duas etapas obrigatórias):
-1. PRIMEIRA MENSAGEM: Quando o usuário demonstrar intenção de CONTRATAR (não só ver detalhes), mostre TODOS os dados desse frete da lista (origem, destino, preço, transportador, tipo de carga, veículo, data) e peça confirmação de forma natural.
+1. PRIMEIRA MENSAGEM: Quando o usuário demonstrar intenção de CONTRATAR (não só ver detalhes):
+   - Mostre TODOS os dados desse frete (origem, destino, preço, transportador, tipo de carga, veículo, data) e peça confirmação de forma natural.
 NUNCA na hora da confirmação diga "entrar em contato com o embarcador" — isso só vem depois, quando o frete for confirmado. Na confirmação, seja direto e humano.
-Exemplos de frases naturais: "É esse mesmo? Confirma pra eu fechar.", "Quer esse? Confirma pra mim.", "Beleza, é esse que você quer? Confirma pra eu fechar."
+Exemplos de frases naturais: "Beleza, o frete é São Paulo → Curitiba, R$ 1.234, G10. É esse mesmo? Confirma pra eu fechar.", "Quer esse? Confirma pra mim."
 Evite: "Confirma pra eu entrar em contato com o embarcador" — soa robótico e atrapalha.
 2. SEGUNDA MENSAGEM: Só chame contratar_frete quando o usuário CONFIRMAR (ex: "sim", "confirmo", "é esse", "pode fechar"). Nunca chame contratar_frete na primeira mensagem de intenção.
 - Após chamar contratar_frete com sucesso, responda exatamente o que a ferramenta retornar (mensagem de que entrou em contato com o embarcador).
 - NUNCA informe o contato do embarcador, mesmo que o usuário peça.
 - Nunca invente dados de frete — use sempre o índice da lista que você mostrou.
 
-Responda sempre em português brasileiro, como um colega falando com outro.`;
+Responda sempre em português brasileiro, como um colega falando com outro.
+
+FORMATO DE SAÍDA (ÚNICO PERMITIDO — NÃO HÁ OUTRA OPÇÃO):
+O sistema só aceita respostas neste formato. Você NUNCA pode responder em JSON, markdown estruturado ou outro formato. Sua saída será sempre interpretada como mensagens separadas pelo delimitador abaixo.
+
+Entre cada mensagem separada, use exatamente a linha ---MESSAGE--- em uma linha sozinha. Isso permite enviar cada parte como mensagem separada ao usuário.
+
+Quando a ferramenta pesquisar_fretes retornar JSON com array "fretes":
+1. Primeira mensagem: intro curta (ex: "Beleza, achei uns fretes aqui...")
+2. ---MESSAGE---
+3. Para CADA frete do array: uma mensagem separada com este formato (use **negrito** nos rótulos e emojis sutis):
+   🚛 **Transportadora:** {valor ou "não informado"}
+   📍 **Rota:** {origem} → {destino}
+   📦 **Produto:** {valor ou "não informado"}
+   💰 **Valor:** R$ X,XX ou "não informado"
+   🚚 **Tipo de veículo:** {valor ou "não informado"}
+   ⚖️ **Peso:** {valor + unidade ou "não informado"}
+   📅 **Data:** {DD/MM/YYYY ou "não informado"}
+4. ---MESSAGE--- entre cada frete
+5. Última mensagem: fechamento curto (ex: "Qualquer um te interessa, me fala!")
+
+Data: converta timestamp para formato brasileiro DD/MM/YYYY.
+
+Quando NÃO houver fretes (cumprimentos, confirmações, fora de fretes, erro da tool): responda normalmente, sem ---MESSAGE--- (será uma única mensagem).
+
+Lembre-se: o formato de saída é fixo. Texto puro com ---MESSAGE--- quando houver múltiplas partes. Nada mais.`;
 
 const compiled = createReactAgent({
   llm,
@@ -116,12 +143,29 @@ function logMessage(msg: BaseMessage): void {
   }
 }
 
+const MESSAGE_DELIMITER = "---MESSAGE---";
+
+function parseMessages(content: string): string[] {
+  if (!content || typeof content !== "string") return [];
+  if (!content.includes(MESSAGE_DELIMITER)) {
+    return content.trim() ? [content.trim()] : [];
+  }
+  const parts = content
+    .split(MESSAGE_DELIMITER)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return parts.length ? parts : [content.trim()];
+}
+
 /**
- * Run the agent with the given user input and return the assistant reply text.
+ * Run the agent with the given user input and return messages to send separately.
  * @param userInput - Mensagem do usuário
  * @param options.log - Se true, usa stream e exibe logs passo a passo (incluindo pensamento da IA)
  */
-export async function runAgent(userInput: string, options?: { log?: boolean; threadId?: string }): Promise<string> {
+export async function runAgent(
+  userInput: string,
+  options?: { log?: boolean; threadId?: string },
+): Promise<{ messages: string[] }> {
   const useLogs = options?.log ?? (process.env.RODEZIO_DEBUG === "true" || process.env.DEBUG === "true");
   const threadId = options?.threadId || randomUUID();
 
@@ -143,11 +187,12 @@ export async function runAgent(userInput: string, options?: { log?: boolean; thr
       log.info("runAgent: LLM retornou", messages.length, "mensagens");
       const last = messages[messages.length - 1];
       if (last && "content" in last && typeof last.content === "string") {
-        log.info("runAgent: resposta extraída (length:", last.content.length, ")");
-        return last.content;
+        const messagesOut = parseMessages(last.content);
+        log.info("runAgent: resposta extraída (", messagesOut.length, "mensagens)");
+        return { messages: messagesOut.length ? messagesOut : [""] };
       }
       log.warn("runAgent: última mensagem sem content string, retornando vazio");
-      return "";
+      return { messages: [""] };
     }
 
     log.step("Iniciando agente ReAct (stream)...");
@@ -178,7 +223,8 @@ export async function runAgent(userInput: string, options?: { log?: boolean; thr
 
     log.info("runAgent: stream finalizado (", chunkCount, "chunks,", prevLen, "mensagens)");
     log.step("Agente finalizou.");
-    return lastContent;
+    const messagesOut = parseMessages(lastContent);
+    return { messages: messagesOut.length ? messagesOut : [""] };
   } catch (err) {
     log.error("runAgent: erro —", err instanceof Error ? err.message : String(err));
     if (err instanceof Error && err.stack) {

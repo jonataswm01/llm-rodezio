@@ -19,7 +19,7 @@ Documento de referência sobre o que o Rodezio faz e não faz. Usado para onboar
 
 | Funcionalidade | Motivo |
 |----------------|--------|
-| Liberar contato do embarcador | Se o usuário pedir, dizer que não temos ou que não é liberado |
+| Liberar contato do embarcador | Nunca liberamos. Se o usuário pedir, dizer que vamos entrar em contato e que logo o embarcador responsável vai entrar em contato com ele para conversar |
 | Assuntos genéricos | Tudo que não for ligado a fretes ou dúvidas sobre a estrada |
 
 ---
@@ -38,7 +38,7 @@ Depois o agente direciona a pessoa a entrar em contato com o Jonatas no (16) 997
 
 ## Demandas fora do escopo (exemplos)
 
-- "Me passa o telefone/WhatsApp do embarcador"
+- "Me passa o telefone/WhatsApp do embarcador" → responder que vamos entrar em contato e que o embarcador responsável vai entrar em contato com ele para conversar (nunca liberar o contato)
 - Assuntos não relacionados a fretes ou à estrada
 
 ---
