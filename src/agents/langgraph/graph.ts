@@ -3,6 +3,7 @@ import type { AIMessage, BaseMessage } from "@langchain/core/messages";
 import { HumanMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { randomUUID } from "node:crypto";
+import z from "zod";
 import { agentEnv } from "./config.js";
 import { runWithThreadId } from "./context.js";
 import { pesquisarFretesTool } from "./tools/pesquisar-fretes.js";
@@ -145,6 +146,35 @@ function logMessage(msg: BaseMessage): void {
 
 const MESSAGE_DELIMITER = "---MESSAGE---";
 
+const messagesSchema = z.object({
+  messages: z.array(z.string()).describe("Array de mensagens para enviar separadamente no WhatsApp"),
+});
+
+async function splitIntoMessages(content: string): Promise<string[]> {
+  const splitterLlm = new ChatOpenAI({
+    apiKey: agentEnv.openai.apiKey(),
+    model: agentEnv.openai.model(),
+    temperature: 0,
+  });
+  const structuredLlm = splitterLlm.withStructuredOutput(messagesSchema);
+
+  const prompt = `O texto abaixo é a resposta do agente Rodezio para um caminhoneiro. Divida em mensagens separadas para enviar no WhatsApp.
+
+Regras:
+1. A introdução antes de qualquer lista de fretes = 1 mensagem.
+2. Cada card de frete (que tem Transportadora, Rota, Produto, Valor, etc) = 1 mensagem separada.
+3. O fechamento após a lista = 1 mensagem.
+
+Retorne um objeto JSON com a chave "messages" contendo array de strings. Cada string = uma mensagem.
+
+TEXTO:
+${content}`;
+
+  const result = await structuredLlm.invoke([{ role: "user", content: prompt }]);
+  const messages = result.messages ?? [];
+  return messages.length ? messages : [content.trim()];
+}
+
 function parseMessages(content: string): string[] {
   if (!content || typeof content !== "string") return [];
   if (!content.includes(MESSAGE_DELIMITER)) {
@@ -155,6 +185,36 @@ function parseMessages(content: string): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
   return parts.length ? parts : [content.trim()];
+}
+
+function needsSplitByLlm(content: string): boolean {
+  return (
+    content.length > 200 &&
+    (content.includes("Rota:") || content.includes("Transportadora") || content.includes("**Rota:**"))
+  );
+}
+
+async function resolveMessages(content: string): Promise<string[]> {
+  if (!content || typeof content !== "string") return [];
+  const trimmed = content.trim();
+  if (!trimmed) return [];
+
+  if (content.includes(MESSAGE_DELIMITER)) {
+    return parseMessages(content);
+  }
+
+  if (needsSplitByLlm(content)) {
+    try {
+      const split = await splitIntoMessages(content);
+      log.info("runAgent: splitIntoMessages retornou", split.length, "mensagens");
+      return split;
+    } catch (err) {
+      log.warn("runAgent: splitIntoMessages falhou, usando fallback:", err instanceof Error ? err.message : String(err));
+      return [trimmed];
+    }
+  }
+
+  return [trimmed];
 }
 
 /**
@@ -187,7 +247,7 @@ export async function runAgent(
       log.info("runAgent: LLM retornou", messages.length, "mensagens");
       const last = messages[messages.length - 1];
       if (last && "content" in last && typeof last.content === "string") {
-        const messagesOut = parseMessages(last.content);
+        const messagesOut = await resolveMessages(last.content);
         log.info("runAgent: resposta extraída (", messagesOut.length, "mensagens)");
         return { messages: messagesOut.length ? messagesOut : [""] };
       }
@@ -223,7 +283,7 @@ export async function runAgent(
 
     log.info("runAgent: stream finalizado (", chunkCount, "chunks,", prevLen, "mensagens)");
     log.step("Agente finalizou.");
-    const messagesOut = parseMessages(lastContent);
+    const messagesOut = await resolveMessages(lastContent);
     return { messages: messagesOut.length ? messagesOut : [""] };
   } catch (err) {
     log.error("runAgent: erro —", err instanceof Error ? err.message : String(err));

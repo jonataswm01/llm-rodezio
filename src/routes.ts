@@ -63,7 +63,9 @@ export async function routes(app: FastifyTypedInstance) {
             }),
             response: {
                 200: z.object({
-                    messages: z.array(z.string()).describe('Array de mensagens para enviar separadamente'),
+                    messages: z
+                        .array(z.record(z.string(), z.string()))
+                        .describe('Array com objeto de mensagens (message[0], message[1], ...) para n8n'),
                 }),
             },
         },
@@ -74,7 +76,11 @@ export async function routes(app: FastifyTypedInstance) {
         try {
             const { messages } = await runAgent(message, { log: useLogs, threadId })
             log.info("POST /agent — resposta enviada (", messages.length, "mensagens)")
-            return reply.send({ messages })
+            const messagesObj: Record<string, string> = {}
+            messages.forEach((msg, i) => {
+                messagesObj[`message[${i}]`] = msg
+            })
+            return reply.send({ messages: [messagesObj] })
         } catch (err) {
             log.error("POST /agent — erro ao executar agente:", err)
             console.error("Stack trace:", err instanceof Error ? err.stack : "(sem stack)")
