@@ -36,6 +36,8 @@ export const agentEnv = {
   },
   n8n: {
     webhookUrl: () => getEnvOptional("N8N_WEBHOOK_CONTRATAR_FRETE", ""),
+    webhookFreteCotacaoUrl: () =>
+      getEnvOptional("N8N_WEBHOOK_FRETE_COTACAO", "https://llm-llm-n8n.bmlwrg.easypanel.host/webhook/frete-cotacao"),
   },
   langsmith: {
     apiKey: () => getEnvOptional("LANGSMITH_API_KEY", ""),

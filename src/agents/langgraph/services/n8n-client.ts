@@ -1,9 +1,17 @@
 /**
- * Cliente para notificar o n8n quando o caminhoneiro quer contratar um frete.
+ * Cliente para notificar o n8n quando o caminhoneiro quer contratar um frete
+ * ou solicita cotação de frete.
  */
 
 import { agentEnv } from "../config.js";
 import { log } from "../../../utils/logger.js";
+
+export interface FreteCotacaoPayload {
+  resumoConversa: string;
+  numeroPessoa: string;
+  hora: string;
+  dadosCotacao?: { origem?: string; destino?: string; tipoCarga?: string };
+}
 
 export interface ContratarFretePayload {
   /** ID da mensagem do frete (para identificar no WhatsApp/grupo) */
@@ -51,6 +59,47 @@ export async function notifyContratarFrete(payload: ContratarFretePayload): Prom
     if (err instanceof Error) {
       if (err.name === "AbortError") {
         log.error("[n8n] Timeout ao enviar para webhook");
+        throw new Error("Timeout ao enviar solicitação. Tente novamente.");
+      }
+      throw err;
+    }
+    throw err;
+  }
+}
+
+export async function notifyFreteCotacao(payload: FreteCotacaoPayload): Promise<void> {
+  const url = agentEnv.n8n.webhookFreteCotacaoUrl();
+  if (!url || url.trim() === "") {
+    log.error("[n8n] N8N_WEBHOOK_FRETE_COTACAO não configurado");
+    throw new Error("Webhook n8n frete-cotacao não configurado. Defina N8N_WEBHOOK_FRETE_COTACAO.");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    log.info("[n8n] Enviando payload para webhook frete-cotacao");
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const text = await response.text();
+      log.error("[n8n] Erro HTTP frete-cotacao", response.status, text.slice(0, 200));
+      throw new Error(`n8n retornou ${response.status}: ${text.slice(0, 100)}`);
+    }
+
+    log.info("[n8n] Payload frete-cotacao enviado com sucesso");
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err instanceof Error) {
+      if (err.name === "AbortError") {
+        log.error("[n8n] Timeout ao enviar para webhook frete-cotacao");
         throw new Error("Timeout ao enviar solicitação. Tente novamente.");
       }
       throw err;

@@ -28,6 +28,10 @@ Documentação estruturada para entender o projeto LLM Rodezio.
 
 > O Rodezio é um agente ReAct que recebe mensagens via HTTP ou CLI, pensa e decide: se a pergunta exige fretes, usa a tool `pesquisar_fretes` (Agente 2) para buscar no Elasticsearch; caso contrário, responde diretamente.
 
+### Jornada do cliente
+
+Para entender quem é o cliente, por que entra em contato e qual o tom de voz esperado, veja [JORNADA_CLIENTE.md](./JORNADA_CLIENTE.md). Para o escopo do produto (o que fazemos e não fazemos), veja [ESCOPO.md](./ESCOPO.md).
+
 ---
 
 ## 2. Diagrama de Alto Nível
@@ -99,6 +103,7 @@ llm-rodezio/
 │
 ├── docs/
 │   ├── ARQUITETURA.md         # Este documento
+│   ├── JORNADA_CLIENTE.md     # Jornada do cliente e posicionamento
 │   └── RODEZIO_MULTI_AGENT.md # Requisitos e entendimento do multi-agente
 │
 ├── langgraph.json             # Config LangGraph CLI (aponta para graph-studio)
