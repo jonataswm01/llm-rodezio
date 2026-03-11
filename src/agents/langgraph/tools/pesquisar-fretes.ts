@@ -1,7 +1,7 @@
 /**
  * Tool pesquisar_fretes — implementa a lógica do Agente 2 (Pesquisador ES).
  * Recebe query em linguagem natural, extrai parâmetros, resolve geolocalização,
- * busca no Elasticsearch e retorna entre 2 e 15 fretes formatados.
+ * busca no Elasticsearch e retorna entre 2 e 30 fretes formatados.
  */
 
 import { tool } from "@langchain/core/tools";
@@ -23,7 +23,32 @@ import { log } from "../../../utils/logger.js";
 type CityWithCoords = Awaited<ReturnType<typeof getCitiesByQuery>>[number] & { lat: number; lon: number };
 
 const MIN_FRETES = 2;
-const MAX_FRETES = 15;
+const MAX_FRETES = 30;
+
+function buildFreteKey(frete: FreteHit): string {
+  if (frete.message_id) return `id:${frete.message_id}`;
+  return JSON.stringify([
+    frete.carrier_name ?? "",
+    frete.origin?.content ?? "",
+    frete.destination?.content ?? "",
+    frete.price ?? "",
+    frete.product_type ?? "",
+    frete.timestamp ?? "",
+  ]);
+}
+
+function mergeFretesUnique(base: FreteHit[], incoming: FreteHit[], max: number): FreteHit[] {
+  const merged = [...base];
+  const seen = new Set(merged.map(buildFreteKey));
+  for (const frete of incoming) {
+    const key = buildFreteKey(frete);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(frete);
+    if (merged.length >= max) break;
+  }
+  return merged;
+}
 
 /** Remove sufixo de estado (ex: "Maringá/PR" → "Maringá") para geolocalização funcionar */
 function normalizeLocationName(name: string): string {
@@ -285,7 +310,7 @@ export const pesquisarFretesTool = tool(
 
       log.info("[pesquisar_fretes] Buscando no Elasticsearch...");
       log.tool("Buscando no Elasticsearch...");
-      const fretes = await searchFretes({
+      const primaryFretes = await searchFretes({
         originLatLon: originLatLon ? { lat: originLatLon.lat, lon: originLatLon.lon } : undefined,
         destinationLatLon: destinationLatLon
           ? { lat: destinationLatLon.lat, lon: destinationLatLon.lon }
@@ -296,6 +321,46 @@ export const pesquisarFretesTool = tool(
         carrierName: params.carrierName,
         limit: MAX_FRETES,
       });
+
+      let fretes = [...primaryFretes];
+
+      // Se vier pouco resultado para rota exata, abre a busca para dar mais opções ao caminhoneiro.
+      if (fretes.length < MAX_FRETES && (originLatLon || destinationLatLon || originText || destinationText)) {
+        log.info("[pesquisar_fretes] Poucos fretes na rota exata, aplicando fallback progressivo");
+
+        if (fretes.length < MAX_FRETES && (originLatLon || originText) && (destinationLatLon || destinationText)) {
+          const byOrigin = await searchFretes({
+            originLatLon: originLatLon ? { lat: originLatLon.lat, lon: originLatLon.lon } : undefined,
+            originText,
+            productType: params.productType,
+            carrierName: params.carrierName,
+            limit: MAX_FRETES,
+          });
+          fretes = mergeFretesUnique(fretes, byOrigin, MAX_FRETES);
+        }
+
+        if (fretes.length < MAX_FRETES && (originLatLon || originText) && (destinationLatLon || destinationText)) {
+          const byDestination = await searchFretes({
+            destinationLatLon: destinationLatLon
+              ? { lat: destinationLatLon.lat, lon: destinationLatLon.lon }
+              : undefined,
+            destinationText,
+            productType: params.productType,
+            carrierName: params.carrierName,
+            limit: MAX_FRETES,
+          });
+          fretes = mergeFretesUnique(fretes, byDestination, MAX_FRETES);
+        }
+
+        if (fretes.length < MAX_FRETES) {
+          const broad = await searchFretes({
+            productType: params.productType,
+            carrierName: params.carrierName,
+            limit: MAX_FRETES,
+          });
+          fretes = mergeFretesUnique(fretes, broad, MAX_FRETES);
+        }
+      }
 
       if (fretes.length === 0) {
         log.tool("Nenhum frete encontrado");
@@ -336,7 +401,7 @@ export const pesquisarFretesTool = tool(
   },
   {
     name: "pesquisar_fretes",
-    description: `Pesquisa fretes no banco de dados. Use quando o usuário pedir fretes, cargas ou preços de transporte. Entrada: descrição em linguagem natural. Retorna JSON com array "fretes" contendo objetos com: carrier_name, origin, destination, price, product_type, vehicle_type, weight_amount, weight_unit, timestamp. Entre ${MIN_FRETES} e ${MAX_FRETES} fretes. Casos sem fretes (erro, nenhum resultado, pergunta de esclarecimento): retorna string simples.`,
+    description: `Pesquisa fretes no banco de dados. Use quando o usuário pedir fretes, cargas ou preços de transporte. Entrada: descrição em linguagem natural. Retorna JSON com array "fretes" contendo objetos com: carrier_name, origin, destination, price, product_type, vehicle_type, weight_amount, weight_unit, timestamp. Entre ${MIN_FRETES} e ${MAX_FRETES} fretes; se a rota exata tiver poucos resultados, amplia a busca para trazer mais opções. Casos sem fretes (erro, nenhum resultado, pergunta de esclarecimento): retorna string simples.`,
     schema: z.object({
       query: z.string().describe("Pesquisa em linguagem natural, ex: fretes de São Paulo para Curitiba de grãos"),
     }),
