@@ -1,7 +1,7 @@
 /**
  * Tool pesquisar_fretes — implementa a lógica do Agente 2 (Pesquisador ES).
  * Recebe query em linguagem natural, extrai parâmetros, resolve geolocalização,
- * busca no Elasticsearch e retorna entre 2 e 30 fretes formatados.
+ * busca no Elasticsearch e retorna entre 2 e 15 fretes formatados.
  */
 
 import { tool } from "@langchain/core/tools";
@@ -23,7 +23,7 @@ import { log } from "../../../utils/logger.js";
 type CityWithCoords = Awaited<ReturnType<typeof getCitiesByQuery>>[number] & { lat: number; lon: number };
 
 const MIN_FRETES = 2;
-const MAX_FRETES = 30;
+const MAX_FRETES = 15;
 
 function buildFreteKey(frete: FreteHit): string {
   if (frete.message_id) return `id:${frete.message_id}`;
@@ -368,7 +368,7 @@ export const pesquisarFretesTool = tool(
         return `Nenhum frete encontrado para a pesquisa: "${query}". Tente ajustar origem, destino ou filtros.`;
       }
 
-      const slice = fretes.slice(0, Math.max(MIN_FRETES, fretes.length));
+      const slice = fretes.slice(0, Math.min(MAX_FRETES, Math.max(MIN_FRETES, fretes.length)));
       log.tool(`Encontrados ${slice.length} fretes`);
       log.info("[pesquisar_fretes] Encontrados", slice.length, "fretes");
 
