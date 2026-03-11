@@ -91,18 +91,35 @@ Entre cada mensagem separada, use exatamente a linha ---MESSAGE--- em uma linha 
 Quando a ferramenta pesquisar_fretes retornar JSON com array "fretes":
 1. Primeira mensagem: intro curta (ex: "Beleza, achei uns fretes aqui...")
 2. ---MESSAGE---
-3. Para CADA frete do array: uma mensagem separada com este formato (use **negrito** nos rótulos e emojis sutis):
-   🚛 **Transportadora:** {valor ou "não informado"}
-   📍 **Rota:** {origem} → {destino}
-   📦 **Produto:** {valor ou "não informado"}
-   💰 **Valor:** R$ X,XX ou "não informado"
-   🚚 **Tipo de veículo:** {valor ou "não informado"}
-   ⚖️ **Peso:** {valor + unidade ou "não informado"}
-   📅 **Data:** {DD/MM/YYYY ou "não informado"}
+3. Para CADA frete do array: uma mensagem separada. FORMATO WHATSAPP (usa * para negrito, não **):
+
+   TRANSPORTADORA (regra especial):
+   - Se informada: só o nome em *negrito*, sem rótulo. Ex: *G10* ou *Lontano Transportes*
+   - Se não informada (null, vazio, UNKNOWN): "Transportadora não informada" (sem negrito)
+
+   Demais campos (com emoji e rótulo):
+   📍 Rota: {origem} → {destino}
+   📦 Produto: {valor ou "Não informado"}
+   💰 Valor: R$ X,XX ou "Não informado"
+   🚚 Tipo de veículo: {valor ou "Não informado"}
+   ⚖️ Peso: {valor + unidade ou "Não informado"}
+   📅 Data: {DD/MM/YYYY ou "Não informado"}
+
+   VALORES VAZIOS: UNKNOWN, NULL, null, vazio ou "N/A" → sempre escreva "Não informado" (sem negrito).
+
+   Exemplo de frete formatado:
+   *Lontano Transportes*
+   📍 Rota: Rio Verde-GO → Santos-SP
+   📦 Produto: Sementes
+   💰 Valor: R$ 314,00
+   🚚 Tipo de veículo: Não informado
+   ⚖️ Peso: Não informado
+   📅 Data: 07/03/2026
+
 4. ---MESSAGE--- entre cada frete
 5. Última mensagem: fechamento curto (ex: "Qualquer um te interessa, me fala!")
 
-Data: converta timestamp para formato brasileiro DD/MM/YYYY.
+Data: converta timestamp para formato brasileiro DD/MM/YYYY. Use apenas \\n para quebras de linha. Mensagens no WhatsApp têm limite de ~4096 caracteres — mantenha conciso.
 
 Quando NÃO houver fretes (cumprimentos, confirmações, fora de fretes, erro da tool): responda normalmente, sem ---MESSAGE--- (será uma única mensagem).
 
@@ -145,6 +162,7 @@ function logMessage(msg: BaseMessage): void {
 }
 
 const MESSAGE_DELIMITER = "---MESSAGE---";
+const CLOSING_MESSAGE_PHRASE = "qualquer um te interessa, me fala";
 
 const messagesSchema = z.object({
   messages: z.array(z.string()).describe("Array de mensagens para enviar separadamente no WhatsApp"),
@@ -172,19 +190,62 @@ ${content}`;
 
   const result = await structuredLlm.invoke([{ role: "user", content: prompt }]);
   const messages = result.messages ?? [];
-  return messages.length ? messages : [content.trim()];
+  return normalizeMessages(messages.length ? messages : [content.trim()]);
 }
 
 function parseMessages(content: string): string[] {
   if (!content || typeof content !== "string") return [];
   if (!content.includes(MESSAGE_DELIMITER)) {
-    return content.trim() ? [content.trim()] : [];
+    return normalizeMessages(content.trim() ? [content.trim()] : []);
   }
   const parts = content
     .split(MESSAGE_DELIMITER)
     .map((s) => s.trim())
     .filter(Boolean);
-  return parts.length ? parts : [content.trim()];
+  return normalizeMessages(parts.length ? parts : [content.trim()]);
+}
+
+function sanitizeMessage(message: string): string {
+  let normalized = message.replace(/\r\n/g, "\n").trim();
+
+  // WhatsApp interpreta negrito com *texto*; evitamos **texto**.
+  normalized = normalized.replace(/\*\*([^*]+?)\*\*/g, "*$1*");
+  normalized = normalized.replace(/\b(?:UNKNOWN|NULL|N\/A)\b/gi, "Não informado");
+
+  // Para transportadora ausente, padroniza o texto final sem rótulo.
+  normalized = normalized.replace(
+    /^\s*🚛?\s*\*{0,2}Transportadora:?\*{0,2}\s*Não informado\s*$/gim,
+    "Transportadora não informada",
+  );
+  normalized = normalized.replace(
+    /^\s*Transportadora:?\s*Não informado\s*$/gim,
+    "Transportadora não informada",
+  );
+
+  return normalized.trim();
+}
+
+function isLikelyFreightCard(message: string): boolean {
+  return message.includes("Rota:") && (message.includes("Valor:") || message.includes("Produto:"));
+}
+
+function splitClosingFromFreightCard(message: string): string[] {
+  const lower = message.toLowerCase();
+  const phraseIndex = lower.lastIndexOf(CLOSING_MESSAGE_PHRASE);
+  if (phraseIndex <= 0) return [message];
+
+  const before = message.slice(0, phraseIndex).trim();
+  const closing = message.slice(phraseIndex).trim();
+  if (!before || !closing) return [message];
+  if (!isLikelyFreightCard(before)) return [message];
+  return [before, closing];
+}
+
+function normalizeMessages(messages: string[]): string[] {
+  return messages
+    .flatMap((message) => splitClosingFromFreightCard(sanitizeMessage(message)))
+    .map((message) => message.trim())
+    .filter(Boolean);
 }
 
 function needsSplitByLlm(content: string): boolean {
@@ -210,11 +271,11 @@ async function resolveMessages(content: string): Promise<string[]> {
       return split;
     } catch (err) {
       log.warn("runAgent: splitIntoMessages falhou, usando fallback:", err instanceof Error ? err.message : String(err));
-      return [trimmed];
+      return normalizeMessages([trimmed]);
     }
   }
 
-  return [trimmed];
+  return normalizeMessages([trimmed]);
 }
 
 /**
