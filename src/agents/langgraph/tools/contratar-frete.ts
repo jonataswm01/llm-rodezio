@@ -14,7 +14,7 @@ import { notifyContratarFrete } from "../services/n8n-client.js";
 import { log } from "../../../utils/logger.js";
 
 const SUCCESS_MESSAGE =
-  "Entrei em contato com o embarcador responsável por esse frete. Em alguns minutos ele deve entrar em contato com você.";
+  "Não posso compartilhar o contato do embarcador. Já acionei o responsável por esse frete e ele vai entrar em contato com você.";
 
 const CACHE_EMPTY_MESSAGE =
   "Pesquise fretes antes de contratar. Diga a rota que você quer (ex: fretes de São Paulo para Curitiba).";
@@ -23,7 +23,7 @@ const INDEX_INVALID_MESSAGE =
   "Não encontrei esse frete na lista. Qual número da lista você quer? (1, 2, 3...)";
 
 const N8N_ERROR_MESSAGE =
-  "Tive um problema ao enviar sua solicitação. Tente novamente em alguns minutos.";
+  "Não consigo compartilhar o contato direto. Tive um problema para acionar o responsável agora; tenta novamente em alguns minutos.";
 
 export const contratarFreteTool = tool(
   async (input: { freteIndex: number }) => {

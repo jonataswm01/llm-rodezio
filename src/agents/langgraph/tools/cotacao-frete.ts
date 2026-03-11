@@ -11,14 +11,7 @@ import { getConversationSummary } from "../services/conversation-summary.js";
 import { notifyFreteCotacao } from "../services/n8n-client.js";
 import { log } from "../../../utils/logger.js";
 
-const SUCCESS_MESSAGE =
-  "Registrei sua solicitação. Entre em contato com o Jonatas no (16) 99733-0113 para falar sobre esse assunto.";
-
-const NO_THREAD_MESSAGE =
-  "Não consegui registrar sua solicitação. Entre em contato com o Jonatas no (16) 99733-0113 para falar sobre esse assunto.";
-
-const N8N_ERROR_MESSAGE =
-  "Tive um problema ao enviar sua solicitação. Entre em contato com o Jonatas no (16) 99733-0113 para falar sobre esse assunto.";
+const CONTACT_MESSAGE = "Para cotação de frete, entre em contato com o Jonatas no (16) 99733-0113.";
 
 const dadosCotacaoSchema = z
   .object({
@@ -36,7 +29,7 @@ export const cotacaoFreteTool = tool(
     const threadId = getThreadId();
     if (!threadId) {
       log.warn("[cotacao_frete] Sem threadId no contexto");
-      return NO_THREAD_MESSAGE;
+      return CONTACT_MESSAGE;
     }
 
     let resumoConversa = "";
@@ -63,10 +56,10 @@ export const cotacaoFreteTool = tool(
     try {
       await notifyFreteCotacao(payload);
       log.info("[cotacao_frete] Webhook n8n chamado com sucesso");
-      return SUCCESS_MESSAGE;
+      return CONTACT_MESSAGE;
     } catch (err) {
       log.error("[cotacao_frete] Erro ao chamar n8n:", err instanceof Error ? err.message : String(err));
-      return N8N_ERROR_MESSAGE;
+      return CONTACT_MESSAGE;
     }
   },
   {
