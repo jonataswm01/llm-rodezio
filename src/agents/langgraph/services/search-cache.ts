@@ -72,3 +72,14 @@ export async function getLastSearch(threadId: string): Promise<LastSearchData | 
     return null;
   }
 }
+
+export async function clearLastSearch(threadId: string): Promise<void> {
+  if (!threadId) return;
+  try {
+    const key = cacheKey(threadId);
+    await getRedis().del(key);
+    log.debug("[SearchCache] Cache removido para thread:", threadId);
+  } catch (err) {
+    log.error("[SearchCache] Erro ao remover cache:", err instanceof Error ? err.message : String(err));
+  }
+}

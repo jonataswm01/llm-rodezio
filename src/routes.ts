@@ -2,6 +2,8 @@ import z from "zod"
 import type { FastifyTypedInstance } from "./types"
 import { randomUUID } from "crypto"
 import { runAgent } from "./agents/langgraph"
+import { checkpointer } from "./agents/langgraph/checkpointer"
+import { clearLastSearch } from "./agents/langgraph/services/search-cache"
 import { log } from "./utils/logger.js"
 
 const userSchema = z.object({
@@ -84,6 +86,38 @@ export async function routes(app: FastifyTypedInstance) {
         } catch (err) {
             log.error("POST /agent — erro ao executar agente:", err)
             console.error("Stack trace:", err instanceof Error ? err.stack : "(sem stack)")
+            throw err
+        }
+    })
+
+    app.post('/clear', {
+        schema: {
+            tags: ['agent'],
+            description: 'Clear Redis memory and cache for a given threadId',
+            body: z.object({
+                threadId: z.string().min(1).describe('Thread ID to clear from Redis'),
+            }),
+            response: {
+                200: z.object({
+                    success: z.literal(true),
+                    threadId: z.string(),
+                    message: z.string(),
+                }).describe('Thread memory cleared successfully'),
+            },
+        },
+    }, async (request, reply) => {
+        const { threadId } = request.body
+        log.info(`POST /clear — limpando memória Redis da thread ${threadId}`)
+        try {
+            await checkpointer.deleteThread(threadId)
+            await clearLastSearch(threadId)
+            return reply.send({
+                success: true,
+                threadId,
+                message: "Histórico de memória limpo com sucesso.",
+            })
+        } catch (err) {
+            log.error("POST /clear — erro ao limpar memória:", err)
             throw err
         }
     })
