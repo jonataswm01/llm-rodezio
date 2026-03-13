@@ -65,6 +65,7 @@ async function extractParamsFromQuery(query: string): Promise<ExtractedParams> {
 2. **productType** (tipo de produto): grãos, farelo, açúcar, etc.
 3. **origin/destination**: use APENAS o nome da cidade (ex: "Maringá", "Paranaguá"). NÃO inclua "/PR" ou sufixo de estado.
 4. IGNORE menções a tipo de veículo (carreta, caminhão, bitrem) — não extraia esse campo.
+5. TRANSCRIÇÃO: se um nome de cidade parecer erro de transcrição (ex: "Dilberaba"), corrija para a cidade mais provável no contexto (ex: Uberaba). Use cidades conhecidas do domínio: Uberaba, Rondonópolis, Rio Verde, Paranaguá, Maringá, Santos, Curitiba.
 
 Pesquisa: "${query}"
 

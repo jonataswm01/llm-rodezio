@@ -12,6 +12,7 @@ import {
   getStatesMap,
   getStateCoordinates,
 } from "../../services/location-api.js";
+import { tryCorrectCityName } from "./transcription-corrections.js";
 import { log } from "../../../../utils/logger.js";
 
 type CityWithCoords = Awaited<ReturnType<typeof getCitiesByQuery>>[number] & { lat: number; lon: number };
@@ -146,19 +147,35 @@ export async function resolveLocation(
   const cities = await getCitiesByQuery({ q: norm });
   const withCoords = getCitiesWithCoords(cities);
 
-  if (withCoords.length === 0) {
-    const stateCoords = await getStateCoordinates(norm);
+  let candidateName = norm;
+  let candidateWithCoords = withCoords;
+
+  if (candidateWithCoords.length === 0) {
+    const correctedCity = tryCorrectCityName(norm);
+    if (correctedCity && correctedCity !== norm) {
+      log.tool(`[resolveLocation] Correção de transcrição aplicada: "${norm}" -> "${correctedCity}"`);
+      const correctedCities = await getCitiesByQuery({ q: correctedCity });
+      const correctedWithCoords = getCitiesWithCoords(correctedCities);
+      if (correctedWithCoords.length > 0) {
+        candidateName = correctedCity;
+        candidateWithCoords = correctedWithCoords;
+      }
+    }
+  }
+
+  if (candidateWithCoords.length === 0) {
+    const stateCoords = await getStateCoordinates(candidateName);
     if (stateCoords) {
-      const states = await getStatesByQuery(norm);
+      const states = await getStatesByQuery(candidateName);
       const stateUf = states[0]?.uf;
       log.tool(`${role === "origin" ? "Origem" : "Destino"}: coordenadas do estado encontradas`, stateCoords);
       return { latLon: stateCoords, stateUf };
     }
     log.tool(`${role === "origin" ? "Origem" : "Destino"}: usando busca por texto (sem lat/long)`);
-    return { text: norm };
+    return { text: candidateName };
   }
 
-  const result = await resolveCityWithContext(norm, withCoords, {
+  const result = await resolveCityWithContext(candidateName, candidateWithCoords, {
     query,
     role,
     otherCity,

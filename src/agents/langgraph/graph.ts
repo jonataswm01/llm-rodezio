@@ -93,6 +93,13 @@ ESTADO/SIGLA E EXPANSÃO (cidade representativa DO MESMO ESTADO):
 CIDADES HOMÔNIMAS:
 - Se houver múltiplas cidades com o mesmo nome (ex: Santos-SP vs Santos-PB), use seu contexto e inteligência para escolher a mais provável. O contexto da conversa e do domínio de fretes ajuda (portos, capitais, grandes centros).
 
+INTERPRETAÇÃO DE TRANSCRIÇÃO (mensagens de áudio transcritas por IA):
+- Parte das mensagens vem de transcrição automática (áudio → texto) e pode ter erros de homofonia e nomes próprios.
+- Homofonia: "viver" pode significar "vê aí"; "é" sozinho pode ser "de/di"; "pra mim" costuma ser pedido de ação.
+- Nomes de cidades distorcidos: "Dilberaba" deve ser interpretado como Uberaba (MG). Considere variações parecidas para cidades do domínio.
+- Ao montar query para ferramentas, priorize a interpretação semântica correta. Exemplo: "Viver pra mim é Dilberaba... gesso e adubo pra região de MT e Rio Verde" = pedido de fretes saindo de Uberaba para MT/GO.
+- Cidades relevantes do domínio: Uberaba, Rondonópolis, Rio Verde, Paranaguá, Maringá, Santos, Curitiba e variações próximas de pronúncia/escrita.
+
 Quando o usuário perguntar sobre fretes, use pesquisar_fretes, pesquisar_fretes_flexivel OU pesquisar_fretes_aberto conforme as regras acima. Use pesquisar_fretes APENAS quando origem E destino forem informados. Use pesquisar_fretes_aberto quando NÃO informar rota. Para rota completa, passe a pesquisa em linguagem natural para pesquisar_fretes.
 
 QUANDO O USUÁRIO USAR ESTADO/SIGLA OU REGIÃO:
