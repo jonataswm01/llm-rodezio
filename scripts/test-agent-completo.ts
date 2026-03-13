@@ -21,7 +21,7 @@ type Scenario = {
   messages: string[];
   tags?: string[];
   expect: {
-    tool?: "pesquisar_fretes" | "pesquisar_fretes_flexivel" | "cotacao_frete" | "conectar_embarcador" | "nenhuma";
+    tool?: "pesquisar_fretes" | "pesquisar_fretes_flexivel" | "pesquisar_fretes_aberto" | "cotacao_frete" | "conectar_embarcador" | "nenhuma";
     contains?: string[];
     containsAny?: Array<string[]>;
     notContains?: string[];
@@ -133,6 +133,34 @@ const scenarios: Scenario[] = [
       contains: ["rota"],
       minMessages: 2,
       description: "Expande MT/Baixada e lista fretes",
+    },
+  },
+  {
+    name: "Pesquisa sem rota (pesquisar_fretes_aberto)",
+    tags: ["pesquisa"],
+    messages: ["tem frete?"],
+    expect: {
+      tool: "pesquisar_fretes_aberto",
+      containsAny: [
+        ["achei", "olha", "dá uma olhada", "vê se algum"],
+        ["rota", "Rota:"],
+      ],
+      minMessages: 2,
+      description: "Usa pesquisar_fretes_aberto e mostra fretes com intro genérica",
+    },
+  },
+  {
+    name: "Pesquisa sem rota com cache (reutiliza última rota)",
+    tags: ["pesquisa", "contexto"],
+    messages: ["fretes de Maringá para Paranaguá", "tem frete?"],
+    expect: {
+      containsAny: [
+        ["achei", "olha", "dá uma olhada", "vê se algum"],
+        ["rota", "Rota:"],
+      ],
+      minMessages: 2,
+      notContains: ["busquei de maringá", "busquei de paranaguá", "que você tava vendo"],
+      description: "Usa cache silenciosamente, intro genérica sem revelar rota",
     },
   },
   // --- COTAÇÃO ---

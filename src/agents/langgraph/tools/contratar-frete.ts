@@ -85,7 +85,7 @@ export const contratarFreteTool = tool(
   },
   {
     name: "conectar_embarcador",
-    description: `Use quando o caminhoneiro demonstrar intenção de ser conectado ao embarcador (ex: "quero esse", "quero o segundo", "me interessa o de X para Y", "quero falar com o embarcador", "me passa o contato"). Passe o índice do frete na lista mostrada (1 = primeiro, 2 = segundo, etc). Só use após ter mostrado fretes com pesquisar_fretes ou pesquisar_fretes_flexivel.`,
+    description: `Use quando o caminhoneiro demonstrar intenção de ser conectado ao embarcador (ex: "quero esse", "quero o segundo", "me interessa o de X para Y", "quero falar com o embarcador", "me passa o contato"). Passe o índice do frete na lista mostrada (1 = primeiro, 2 = segundo, etc). Só use após ter mostrado fretes com pesquisar_fretes, pesquisar_fretes_flexivel ou pesquisar_fretes_aberto.`,
     schema: z.object({
       freteIndex: z
         .number()

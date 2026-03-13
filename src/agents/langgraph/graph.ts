@@ -8,6 +8,7 @@ import { agentEnv } from "./config.js";
 import { runWithThreadId } from "./context.js";
 import { pesquisarFretesTool } from "./tools/pesquisar-fretes.js";
 import { pesquisarFretesFlexivelTool } from "./tools/pesquisar-fretes-flexivel.js";
+import { pesquisarFretesAbertoTool } from "./tools/pesquisar-fretes-aberto.js";
 import { contratarFreteTool } from "./tools/contratar-frete.js";
 import { cotacaoFreteTool } from "./tools/cotacao-frete.js";
 import { checkpointer } from "./checkpointer.js";
@@ -66,6 +67,7 @@ TOM HUMANO (obrigatório):
 - Seja conciso. O caminhoneiro está na correria.
 
 ESCOLHA DA FERRAMENTA DE PESQUISA:
+- Se o usuário NÃO informou origem nem destino (ex: "tem frete?", "o que tem?", "me mostra uns fretes", "quero ver fretes") → use pesquisar_fretes_aberto. NUNCA pergunte a rota.
 - Se o usuário informou APENAS ORIGEM → use pesquisar_fretes_flexivel com modo "origem". NUNCA pergunte "qual o destino?".
 - Se o usuário informou APENAS DESTINO → use pesquisar_fretes_flexivel com modo "destino". NUNCA pergunte "qual a origem?".
 - Se o usuário informou ORIGEM E DESTINO → use pesquisar_fretes com a query completa.
@@ -91,7 +93,7 @@ ESTADO/SIGLA E EXPANSÃO (cidade representativa DO MESMO ESTADO):
 CIDADES HOMÔNIMAS:
 - Se houver múltiplas cidades com o mesmo nome (ex: Santos-SP vs Santos-PB), use seu contexto e inteligência para escolher a mais provável. O contexto da conversa e do domínio de fretes ajuda (portos, capitais, grandes centros).
 
-Quando o usuário perguntar sobre fretes, use pesquisar_fretes OU pesquisar_fretes_flexivel conforme as regras acima. Use pesquisar_fretes APENAS quando origem E destino forem informados. Para rota completa, passe a pesquisa em linguagem natural para pesquisar_fretes.
+Quando o usuário perguntar sobre fretes, use pesquisar_fretes, pesquisar_fretes_flexivel OU pesquisar_fretes_aberto conforme as regras acima. Use pesquisar_fretes APENAS quando origem E destino forem informados. Use pesquisar_fretes_aberto quando NÃO informar rota. Para rota completa, passe a pesquisa em linguagem natural para pesquisar_fretes.
 
 QUANDO O USUÁRIO USAR ESTADO/SIGLA OU REGIÃO:
 - Usuários frequentemente falam "MT", "SP", "Baixada" em vez de cidade. Expanda para cidade do MESMO estado.
@@ -133,8 +135,10 @@ O sistema só aceita respostas neste formato. Você NUNCA pode responder em JSON
 
 Entre cada mensagem separada, use exatamente a linha ---MESSAGE--- em uma linha sozinha. Isso permite enviar cada parte como mensagem separada ao usuário.
 
-Quando pesquisar_fretes OU pesquisar_fretes_flexivel retornar JSON com array "fretes":
-1. Primeira mensagem: intro curta. Se for pesquisar_fretes_flexivel, contextualize (ex: "Esses são os fretes pro destino X", "Esses são os fretes da região de Y").
+Quando pesquisar_fretes, pesquisar_fretes_flexivel OU pesquisar_fretes_aberto retornar JSON com array "fretes":
+1. Primeira mensagem: intro curta.
+   - Se for pesquisar_fretes_aberto: SEMPRE use intro genérica. NUNCA mencione a rota. Ex: "Olha, achei esses fretes. Vê se algum te interessa.", "Dá uma olhada nesses... se algum te chamar atenção, manda!".
+   - Se for pesquisar_fretes_flexivel: contextualize (ex: "Esses são os fretes pro destino X", "Esses são os fretes da região de Y").
 2. ---MESSAGE---
 3. Para CADA frete do array: uma mensagem separada. FORMATO WHATSAPP (usa * para negrito, não **):
 
@@ -173,7 +177,7 @@ Lembre-se: o formato de saída é fixo. Texto puro com ---MESSAGE--- quando houv
 
 const compiled = createReactAgent({
   llm,
-  tools: [pesquisarFretesFlexivelTool, pesquisarFretesTool, contratarFreteTool, cotacaoFreteTool],
+  tools: [pesquisarFretesFlexivelTool, pesquisarFretesTool, pesquisarFretesAbertoTool, contratarFreteTool, cotacaoFreteTool],
   prompt: async (state: { messages?: BaseMessage[] }) => {
     const messages = state.messages ?? [];
     if (messages.length === 0) return [new SystemMessage(SYSTEM_PROMPT)];
