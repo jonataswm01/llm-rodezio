@@ -12,7 +12,10 @@
     "agent:build": "tsc",
     "agent:start": "node dist/agents/langgraph/index.js",
     "studio:dev": "pnpm agent:build && npx @langchain/langgraph-cli dev",
-    "studio": "npx @langchain/langgraph-cli dev"
+    "studio": "npx @langchain/langgraph-cli dev",
+    "test:agent": "tsx --env-file=.env scripts/test-agent-conexao.ts",
+    "test:agent:completo": "tsx --env-file=.env scripts/test-agent-completo.ts",
+    "test:ci": "pnpm test:agent"
   },
   "keywords": [],
   "author": "",

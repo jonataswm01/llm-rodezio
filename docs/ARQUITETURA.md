@@ -26,7 +26,7 @@ Documentação estruturada para entender o projeto LLM Rodezio.
 
 ### Em uma frase
 
-> O Rodezio é um agente ReAct que recebe mensagens via HTTP ou CLI, pensa e decide: se a pergunta exige fretes, usa a tool `pesquisar_fretes` (Agente 2) para buscar no Elasticsearch; caso contrário, responde diretamente.
+> O Rodezio é um agente ReAct que recebe mensagens via HTTP ou CLI, pensa e decide: se a pergunta exige fretes, usa `pesquisar_fretes` (rota completa) ou `pesquisar_fretes_flexivel` (só origem ou só destino) para buscar no Elasticsearch; caso contrário, responde diretamente.
 
 ### Jornada do cliente
 
@@ -55,8 +55,9 @@ Para entender quem é o cliente, por que entra em contato e qual o tom de voz es
 │   (2024)        │              │                    │                    │        │
 │                 └──────────────┤                    ▼                    │        │
 │                                │         ┌──────────────────┐           │        │
-│                                │         │  Tool:           │           │        │
+│                                │         │  Tools:          │           │        │
 │                                │         │  pesquisar_fretes │           │        │
+│                                │         │  pesquisar_fretes_flexivel    │        │
 │                                │         │  (Agente 2)       │           │        │
 │                                │         └────────┬─────────┘           │        │
 │                                │                  │                      │        │
@@ -95,7 +96,10 @@ llm-rodezio/
 │           ├── graph-studio.ts # Entrypoint para LangGraph Studio (re-exporta graph)
 │           ├── index.ts       # Entrypoint CLI + exporta runAgent
 │           ├── tools/
-│           │   └── pesquisar-fretes.ts  # Tool Agente 2 (pesquisa ES)
+│           │   ├── pesquisar-fretes.ts  # Tool rota completa (origem + destino)
+│           │   ├── pesquisar-fretes-flexivel.ts  # Tool rota parcial (só origem ou só destino)
+│           │   └── shared/
+│           │       └── resolve-location.ts  # Geolocalização compartilhada
 │           ├── services/
 │           │   ├── elasticsearch.ts     # Cliente ES, busca no index fretes
 │           │   └── location-api.ts      # API sag-backend (lat/long)
@@ -121,9 +125,11 @@ llm-rodezio/
 | `routes.ts` | Handlers de `/users` e `/agent`, validação Zod |
 | `config/langsmith.ts` | Ativa/desativa tracing, define LANGCHAIN_* |
 | `agents/langgraph/config.ts` | Lê e valida OPENAI_*, ELASTICSEARCH_*, SAG_BACKEND_*, LANGSMITH_* |
-| `agents/langgraph/graph.ts` | Agente 1 ReAct com tool `pesquisar_fretes`, define `runAgent()` |
+| `agents/langgraph/graph.ts` | Agente 1 ReAct com tools `pesquisar_fretes` e `pesquisar_fretes_flexivel`, define `runAgent()` |
 | `agents/langgraph/graph-studio.ts` | Inicializa LangSmith e re-exporta `agent` de graph.ts |
-| `agents/langgraph/tools/pesquisar-fretes.ts` | Tool Agente 2: extrai params, resolve geolocalização, busca ES |
+| `agents/langgraph/tools/pesquisar-fretes.ts` | Tool rota completa: extrai params, resolve geolocalização, busca ES |
+| `agents/langgraph/tools/pesquisar-fretes-flexivel.ts` | Tool rota parcial: busca por só origem ou só destino |
+| `agents/langgraph/tools/shared/resolve-location.ts` | Módulo compartilhado: resolve geolocalização (lat/lon) de cidades e estados |
 | `agents/langgraph/services/elasticsearch.ts` | Cliente ES, busca fretes com ordenação (timestamp desc, price desc) |
 | `agents/langgraph/services/location-api.ts` | Cliente HTTP para sag-backend (states, cities com lat/long) |
 | `agents/langgraph/index.ts` | CLI: lê input, chama `runAgent`, abre LangSmith |
@@ -150,7 +156,8 @@ llm-rodezio/
                         │
                         └─── com tool_calls ───► Nó "tools"
                                                     │
-                                                    │  pesquisar_fretes(query)
+                                                    │  pesquisar_fretes(query) ou
+                                                    │  pesquisar_fretes_flexivel(modo, localizacao)
                                                     │  → extrai params (LLM)
                                                     │  → location API (lat/long)
                                                     │  → Elasticsearch
@@ -182,7 +189,7 @@ routes.ts (handler)
     ▼
 graph.ts → createReactAgent.invoke({ messages: [HumanMessage] })
     │
-    │  Agente 1 (ReAct): decide usar pesquisar_fretes
+    │  Agente 1 (ReAct): decide usar pesquisar_fretes ou pesquisar_fretes_flexivel
     │  → Tool: extrai params, chama location API, busca ES
     │  → Retorna 2–15 fretes
     │  → Agente 1 sintetiza resposta final
@@ -213,7 +220,7 @@ routes.ts → reply.send({ response: "..." })
 |----------|----------------|
 | **Framework** | LangGraphJS (`createReactAgent`) |
 | **Agente 1** | Rodezio (Orquestrador ReAct) |
-| **Agente 2** | Tool `pesquisar_fretes` (pesquisa fretes no ES) |
+| **Agente 2** | Tools `pesquisar_fretes` (rota completa) e `pesquisar_fretes_flexivel` (só origem ou só destino) |
 | **Estado** | `MessagesAnnotation` |
 | **LLM** | `ChatOpenAI` (OpenAI) |
 | **Modelo padrão** | `gpt-4.1-mini` (via config) |
@@ -288,7 +295,7 @@ O `langgraph.json` aponta para `graph-studio.js:agent`.
 Rodezio = API Fastify + Agente ReAct Multi-Agente + Elasticsearch + LangSmith (opcional)
 
 Entrada:  mensagem de texto (HTTP ou CLI)
-Processo: Agente 1 (ReAct) pensa → se precisa fretes, chama tool pesquisar_fretes (Agente 2)
+Processo: Agente 1 (ReAct) pensa → se precisa fretes, chama pesquisar_fretes ou pesquisar_fretes_flexivel
           → tool busca no ES (com geolocalização via API SAG) → retorna 2–15 fretes
 Saída:    resposta do modelo em texto (com ou sem fretes)
 ```

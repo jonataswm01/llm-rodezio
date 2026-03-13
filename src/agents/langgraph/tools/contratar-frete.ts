@@ -1,5 +1,5 @@
 /**
- * Tool contratar_frete — quando o caminhoneiro manifesta intenção de contratar um frete,
+ * Tool conectar_embarcador — quando o caminhoneiro manifesta intenção de ser conectado ao embarcador,
  * chama o webhook n8n com os dados e retorna mensagem fixa.
  * O freteIndex (1, 2, 3...) vem do LLM — indica qual frete da lista o usuário escolheu.
  * O frete real (com ID/message_id) vem do cache da última pesquisa.
@@ -14,25 +14,25 @@ import { notifyContratarFrete } from "../services/n8n-client.js";
 import { log } from "../../../utils/logger.js";
 
 const SUCCESS_MESSAGE =
-  "Não posso compartilhar o contato do embarcador. Já acionei o responsável por esse frete e ele vai entrar em contato com você.";
+  "Vou falar com o embarcador agora, logo ele entra em contato com você.";
 
 const CACHE_EMPTY_MESSAGE =
-  "Pesquise fretes antes de contratar. Diga a rota que você quer (ex: fretes de São Paulo para Curitiba).";
+  "Pesquise fretes antes de conectar. Diga a rota ou o destino (ex: fretes para Santos, fretes saindo de Maringá, fretes de São Paulo para Curitiba).";
 
 const INDEX_INVALID_MESSAGE =
   "Não encontrei esse frete na lista. Qual número da lista você quer? (1, 2, 3...)";
 
 const N8N_ERROR_MESSAGE =
-  "Não consigo compartilhar o contato direto. Tive um problema para acionar o responsável agora; tenta novamente em alguns minutos.";
+  "Tive um problema para acionar o responsável agora; tenta novamente em alguns minutos.";
 
 export const contratarFreteTool = tool(
   async (input: { freteIndex: number }) => {
     const { freteIndex } = input;
-    log.tool("contratar_frete chamada com freteIndex:", freteIndex);
+    log.tool("conectar_embarcador chamada com freteIndex:", freteIndex);
 
     const threadId = getThreadId();
     if (!threadId) {
-      log.warn("[contratar_frete] Sem threadId no contexto");
+      log.warn("[conectar_embarcador] Sem threadId no contexto");
       return CACHE_EMPTY_MESSAGE;
     }
 
@@ -55,7 +55,7 @@ export const contratarFreteTool = tool(
     try {
       resumoConversa = await getConversationSummary(threadId);
     } catch (err) {
-      log.warn("[contratar_frete] Erro ao obter resumo:", err instanceof Error ? err.message : String(err));
+      log.warn("[conectar_embarcador] Erro ao obter resumo:", err instanceof Error ? err.message : String(err));
     }
 
     const messageId = frete.message_id as string | undefined;
@@ -76,16 +76,16 @@ export const contratarFreteTool = tool(
 
     try {
       await notifyContratarFrete(payload);
-      log.info("[contratar_frete] Webhook n8n chamado com sucesso");
+      log.info("[conectar_embarcador] Webhook n8n chamado com sucesso");
       return SUCCESS_MESSAGE;
     } catch (err) {
-      log.error("[contratar_frete] Erro ao chamar n8n:", err instanceof Error ? err.message : String(err));
+      log.error("[conectar_embarcador] Erro ao chamar n8n:", err instanceof Error ? err.message : String(err));
       return N8N_ERROR_MESSAGE;
     }
   },
   {
-    name: "contratar_frete",
-    description: `Use quando o caminhoneiro demonstrar intenção de contratar/pegar um frete (ex: "quero esse", "quero o segundo", "me interessa o de X para Y", "quero contratar"). Passe o índice do frete na lista mostrada (1 = primeiro, 2 = segundo, etc). Só use após ter mostrado fretes com pesquisar_fretes.`,
+    name: "conectar_embarcador",
+    description: `Use quando o caminhoneiro demonstrar intenção de ser conectado ao embarcador (ex: "quero esse", "quero o segundo", "me interessa o de X para Y", "quero falar com o embarcador", "me passa o contato"). Passe o índice do frete na lista mostrada (1 = primeiro, 2 = segundo, etc). Só use após ter mostrado fretes com pesquisar_fretes ou pesquisar_fretes_flexivel.`,
     schema: z.object({
       freteIndex: z
         .number()

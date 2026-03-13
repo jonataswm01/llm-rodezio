@@ -6,20 +6,71 @@ Documento de refinamento da ideia de oferecer frete de ida e retorno para caminh
 
 ---
 
-## 1) Contexto
+## Indice
 
-A dor central do caminhoneiro e rodar vazio no retorno. Mesmo quando a ida paga bem, o lucro final da viagem cai quando nao existe carga de volta.
-
-A proposta do **Frete Ida + Volta** e tratar a viagem como um ciclo unico:
-
-- Ida: origem A -> destino B
-- Volta: destino B -> origem A (ou regiao de A)
-
-Em vez de vender apenas um frete, o produto passa a oferecer **resultado da rota completa**.
+- [1) Visao geral](#1-visao-geral)
+- [2) Contexto](#2-contexto)
+- [3) Objetivo do produto](#3-objetivo-do-produto)
+- [4) Proposta de valor (mensagem para o caminhoneiro)](#4-proposta-de-valor-mensagem-para-o-caminhoneiro)
+- [5) Niveis de retorno (para evitar promessas erradas)](#5-niveis-de-retorno-para-evitar-promessas-erradas)
+- [6) Escopo inicial (MVP de produto)](#6-escopo-inicial-mvp-de-produto)
+- [7) Regras de negocio sugeridas](#7-regras-de-negocio-sugeridas)
+- [8) Experiencia recomendada (visao de tela)](#8-experiencia-recomendada-visao-de-tela)
+- [9) Metricas para validar a ideia](#9-metricas-para-validar-a-ideia)
+- [10) Principais riscos e mitigacoes](#10-principais-riscos-e-mitigacoes)
+- [11) Plano de refinamento (antes de producao)](#11-plano-de-refinamento-antes-de-producao)
+- [12) Criterios para Go/No-Go de producao](#12-criterios-para-gono-go-de-producao)
+- [13) Perguntas em aberto para proximos refinamentos](#13-perguntas-em-aberto-para-proximos-refinamentos)
+- [14) Decisao atual](#14-decisao-atual)
 
 ---
 
-## 2) Objetivo do produto
+## 1) Visao geral
+
+Este documento existe para transformar uma intuicao de produto em uma proposta clara, validavel e segura de evoluir.
+
+Hoje, o problema nao e simplesmente "achar frete". O problema real do caminhoneiro e **fechar uma rota que faca sentido financeiramente do inicio ao fim**. Em muitos casos, a ida ate paga bem, mas o retorno vazio destroi parte relevante do ganho.
+
+A ideia do **Frete Ida + Volta** nasce para atacar essa dor. Em vez de apresentar apenas um frete isolado, o produto passa a tentar montar um **ciclo de viagem**:
+
+- sair com carga
+- entregar no destino
+- ter retorno confirmado ou com boa chance
+- reduzir km vazio
+- aumentar o ganho total da operacao
+
+Este material ainda nao define implementacao tecnica. O foco aqui e:
+
+- explicar com clareza o problema que queremos resolver
+- organizar a proposta de valor
+- definir regras de negocio iniciais
+- listar riscos, metricas e criterios de validacao
+
+---
+
+## 2) Contexto
+
+A principal dor do caminhoneiro nao esta so em conseguir uma carga. Ela esta em conseguir uma carga que realmente compense quando se olha a viagem inteira.
+
+Exemplo pratico:
+
+- Ida: Maringa -> Santos
+- Volta ideal: Santos -> Maringa ou regiao
+
+No modelo tradicional, a decisao costuma ser tomada olhando apenas para a ida. O problema e que, sem visibilidade de retorno, o caminhoneiro assume riscos como:
+
+- voltar vazio
+- aceitar uma volta ruim so para nao perder a viagem
+- ficar horas ou dias procurando retorno
+- reduzir o lucro total da rota
+
+A proposta do **Frete Ida + Volta** muda esse raciocinio. Em vez de vender apenas um frete, o produto passa a oferecer **resultado da rota completa**, com transparencia sobre o nivel de confianca da volta.
+
+Essa mudanca e importante porque aproxima a plataforma da logica real de decisao do caminhoneiro: ele nao pensa apenas no valor da ida, ele pensa no quanto vai sobrar no ciclo inteiro.
+
+---
+
+## 3) Objetivo do produto
 
 Criar uma experiencia que aumente previsibilidade e ganho total do caminhoneiro, reduzindo km rodado vazio no retorno.
 
@@ -32,7 +83,7 @@ Objetivos praticos:
 
 ---
 
-## 3) Proposta de valor (mensagem para o caminhoneiro)
+## 4) Proposta de valor (mensagem para o caminhoneiro)
 
 "Aqui voce nao pega so a ida. A gente te ajuda a voltar carregado."
 
@@ -44,7 +95,7 @@ Pilares da proposta:
 
 ---
 
-## 4) Niveis de retorno (para evitar promessas erradas)
+## 5) Niveis de retorno (para evitar promessas erradas)
 
 Para nao gerar frustracao, o retorno deve ser classificado de forma transparente:
 
@@ -62,7 +113,7 @@ Regra de comunicacao:
 
 ---
 
-## 5) Escopo inicial (MVP de produto)
+## 6) Escopo inicial (MVP de produto)
 
 ### Inclui
 
@@ -83,7 +134,7 @@ Regra de comunicacao:
 
 ---
 
-## 6) Regras de negocio sugeridas
+## 7) Regras de negocio sugeridas
 
 1. **Compatibilidade de rota**
    - Retorno precisa terminar na origem ou em regiao aceitavel configurada.
@@ -98,7 +149,7 @@ Regra de comunicacao:
 
 ---
 
-## 7) Experiencia recomendada (visao de tela)
+## 8) Experiencia recomendada (visao de tela)
 
 Cartao "Frete Casado":
 
@@ -115,7 +166,7 @@ Call-to-action sugerido:
 
 ---
 
-## 8) Metricas para validar a ideia
+## 9) Metricas para validar a ideia
 
 ### Metricas de adesao
 
@@ -136,7 +187,7 @@ Call-to-action sugerido:
 
 ---
 
-## 9) Principais riscos e mitigacoes
+## 10) Principais riscos e mitigacoes
 
 - **Risco:** promessa exagerada de retorno  
   **Mitigacao:** usar niveis de confianca e linguagem transparente.
@@ -152,7 +203,7 @@ Call-to-action sugerido:
 
 ---
 
-## 10) Plano de refinamento (antes de producao)
+## 11) Plano de refinamento (antes de producao)
 
 ### Fase A - Tese e regras
 
@@ -174,7 +225,7 @@ Call-to-action sugerido:
 
 ---
 
-## 11) Criterios para Go/No-Go de producao
+## 12) Criterios para Go/No-Go de producao
 
 Go para producao quando:
 
@@ -191,7 +242,7 @@ No-Go (segurar lancamento) quando:
 
 ---
 
-## 12) Perguntas em aberto para proximos refinamentos
+## 13) Perguntas em aberto para proximos refinamentos
 
 - Qual raio de retorno aceitavel por perfil de caminhoneiro?
 - Qual tempo maximo de espera entre descarga e nova coleta?
@@ -200,7 +251,7 @@ No-Go (segurar lancamento) quando:
 
 ---
 
-## 13) Decisao atual
+## 14) Decisao atual
 
 A ideia e promissora e alinhada com a dor real do caminhoneiro.  
 Neste momento, seguimos em refinamento de regras, comunicacao e metricas, sem entrar em implementacao tecnica.
