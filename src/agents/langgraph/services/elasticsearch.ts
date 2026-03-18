@@ -68,16 +68,16 @@ export interface SearchFretesPartialParams {
  */
 export async function searchFretes(params: SearchFretesParams): Promise<FreteHit[]> {
   const limit = Math.min(Math.max(params.limit ?? 15, 2), 15);
-  const geoRadiusKm = agentEnv.elasticsearch.geoRadiusKm();
-  const distance = `${geoRadiusKm}km`;
-  log.debug(`ES: buscando fretes (limit=${limit}, raio=${distance})`, params);
+  const radiusOriginKm = agentEnv.elasticsearch.geoRadiusOriginKm();
+  const radiusDestinationKm = agentEnv.elasticsearch.geoRadiusDestinationKm();
+  log.debug(`ES: buscando fretes (limit=${limit}, raio_origem=${radiusOriginKm}km, raio_destino=${radiusDestinationKm}km)`, params);
 
   const must: object[] = [];
 
   if (params.originLatLon) {
     must.push({
       geo_distance: {
-        distance,
+        distance: `${radiusOriginKm}km`,
         "origin.location": params.originLatLon,
       },
     });
@@ -85,7 +85,7 @@ export async function searchFretes(params: SearchFretesParams): Promise<FreteHit
   if (params.destinationLatLon) {
     must.push({
       geo_distance: {
-        distance,
+        distance: `${radiusDestinationKm}km`,
         "destination.location": params.destinationLatLon,
       },
     });
@@ -164,8 +164,10 @@ export async function searchFretes(params: SearchFretesParams): Promise<FreteHit
  */
 export async function searchFretesPartial(params: SearchFretesPartialParams): Promise<FreteHit[]> {
   const limit = Math.min(Math.max(params.limit ?? 15, 2), 15);
-  const geoRadiusKm = agentEnv.elasticsearch.geoRadiusKm();
-  const distance = `${geoRadiusKm}km`;
+  const radiusKm = params.mode === "origin"
+    ? agentEnv.elasticsearch.geoRadiusOriginKm()
+    : agentEnv.elasticsearch.geoRadiusDestinationKm();
+  const distance = `${radiusKm}km`;
 
   if (!params.latLon && !params.text) {
     throw new Error("searchFretesPartial requer latLon ou text");

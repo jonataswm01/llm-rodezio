@@ -26,7 +26,8 @@ export const agentEnv = {
     indexFretes: () => getEnvOptional("ELASTICSEARCH_INDEX_FRETES", "fretes"),
     username: () => getEnvOptional("ELASTICSEARCH_USER", ""),
     password: () => getEnvOptional("ELASTICSEARCH_PASSWORD", ""),
-    geoRadiusKm: () => Number.parseInt(getEnvOptional("ELASTICSEARCH_GEO_RADIUS_KM", "300"), 10),
+    geoRadiusOriginKm: () => Number.parseInt(getEnvOptional("ELASTICSEARCH_GEO_RADIUS_ORIGEM_KM", "150"), 10),
+    geoRadiusDestinationKm: () => Number.parseInt(getEnvOptional("ELASTICSEARCH_GEO_RADIUS_DESTINO_KM", "50"), 10),
   },
   redis: {
     url: () => getEnvOptional("REDIS_URL", "redis://localhost:6379"),

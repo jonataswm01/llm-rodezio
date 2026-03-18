@@ -10,7 +10,8 @@ Copie `.env.example` para `.env` e preencha:
 - **OPENAI_MODEL** (opcional): modelo, padrão `gpt-4.1-mini`.
 - **ELASTICSEARCH_URL** (opcional): URL do ES (padrão `http://localhost:9200`).
 - **ELASTICSEARCH_INDEX_FRETES** (opcional): index de fretes (padrão `fretes`).
-- **ELASTICSEARCH_GEO_RADIUS_KM** (opcional): raio em km para busca geo (padrão `300`).
+- **ELASTICSEARCH_GEO_RADIUS_ORIGEM_KM** (opcional): raio em km para busca geo em origem (padrão `150`).
+- **ELASTICSEARCH_GEO_RADIUS_DESTINO_KM** (opcional): raio em km para busca geo em destino (padrão `50`).
 - **ELASTICSEARCH_USER** e **ELASTICSEARCH_PASSWORD** (opcionais): autenticação. Se não informados, conecta sem auth.
 - **SAG_BACKEND_URL** (opcional): API de localização (padrão `https://sag-backend.roduno.work`).
 - **LANGSMITH_API_KEY** (opcional): para enviar traces ao LangSmith.

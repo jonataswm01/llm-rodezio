@@ -190,7 +190,7 @@ A query é praticamente a mesma da `searchFretes` atual, mas com **apenas um** d
 
 **Cenário**: usuário disse "tem frete saindo de Maringá?"  
 **Coordenadas** (exemplo): Maringá-PR → lat -23.42, lon -51.94  
-**Raio**: 300km (ELASTICSEARCH_GEO_RADIUS_KM)
+**Raio**: 150km (ELASTICSEARCH_GEO_RADIUS_ORIGEM_KM)
 
 ```json
 {
@@ -204,7 +204,7 @@ A query é praticamente a mesma da `searchFretes` atual, mas com **apenas um** d
       "must": [
         {
           "geo_distance": {
-            "distance": "300km",
+            "distance": "150km",
             "origin.location": {
               "lat": -23.42,
               "lon": -51.94
@@ -246,7 +246,7 @@ A query é praticamente a mesma da `searchFretes` atual, mas com **apenas um** d
 
 **Cenário**: usuário disse "tem frete para Santos?"  
 **Coordenadas** (exemplo): Santos-SP → lat -23.96, lon -46.33  
-**Raio**: 300km
+**Raio**: 50km (ELASTICSEARCH_GEO_RADIUS_DESTINO_KM)
 
 ```json
 {
@@ -260,7 +260,7 @@ A query é praticamente a mesma da `searchFretes` atual, mas com **apenas um** d
       "must": [
         {
           "geo_distance": {
-            "distance": "300km",
+            "distance": "50km",
             "destination.location": {
               "lat": -23.96,
               "lon": -46.33
@@ -314,7 +314,7 @@ A query é praticamente a mesma da `searchFretes` atual, mas com **apenas um** d
       "must": [
         {
           "geo_distance": {
-            "distance": "300km",
+            "distance": "50km",
             "destination.location": { "lat": -23.96, "lon": -46.33 }
           }
         },
@@ -343,7 +343,7 @@ A query é praticamente a mesma da `searchFretes` atual, mas com **apenas um** d
       "must": [
         {
           "geo_distance": {
-            "distance": "300km",
+            "distance": "150km",
             "origin.location": { "lat": -23.42, "lon": -51.94 }
           }
         },

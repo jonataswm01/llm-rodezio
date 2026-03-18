@@ -270,7 +270,8 @@ O `langgraph.json` aponta para `graph-studio.js:agent`.
 | `OPENAI_MODEL` | `gpt-4.1-mini` | Modelo OpenAI |
 | `ELASTICSEARCH_URL` | `http://localhost:9200` | URL do Elasticsearch |
 | `ELASTICSEARCH_INDEX_FRETES` | `fretes` | Nome do index de fretes |
-| `ELASTICSEARCH_GEO_RADIUS_KM` | `300` | Raio (km) para busca geo em origin/destination |
+| `ELASTICSEARCH_GEO_RADIUS_ORIGEM_KM` | `150` | Raio (km) para busca geo em origem |
+| `ELASTICSEARCH_GEO_RADIUS_DESTINO_KM` | `50` | Raio (km) para busca geo em destino |
 | `ELASTICSEARCH_USER` | — | Usuário (opcional; se informado com PASSWORD, usa auth) |
 | `ELASTICSEARCH_PASSWORD` | — | Senha (opcional) |
 | `SAG_BACKEND_URL` | `https://sag-backend.roduno.work` | API de localização (lat/long) |
